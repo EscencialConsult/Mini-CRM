@@ -1,0 +1,5 @@
+project_id = "dzabqnznnotkztrdextl"
+
+# La función verifica el JWT del llamador ella misma (admin.auth.getUser) y exige rol administrador
+[functions.users]
+verify_jwt = false

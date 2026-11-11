@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+build/
+
+# env / secretos (nunca subir a GitHub)
+.env
+.env.*
+!.env.example
+CREDENCIALES.md
+CREDENCIALES.local.md
+
+# editores / SO
+.idea/
+.vscode/
+.DS_Store
+*.log
+*.tsbuildinfo
+.eslintcache
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
