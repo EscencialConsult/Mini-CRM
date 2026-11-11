@@ -1,16 +1,17 @@
-import { Plus } from "lucide-react";
-import { Link } from "react-router";
-
-import { Button } from "@/components/ui/button";
-
 import { formatFecha, formatMoneda } from "../domain/format";
 import { ETAPAS, RESULTADOS } from "../domain/options";
 import type { Oportunidad } from "../domain/types";
-import { useCrmIdentity } from "../providers/authProvider";
 import { EtapaBadge, ResultadoBadge } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
-import { useUsuarios } from "../shared/useUsuarios";
+import {
+  AccionesOportunidades,
+  FiltroResponsable,
+} from "./ControlesOportunidades";
+import {
+  BUSCAR_OPORTUNIDADES,
+  FILTROS_INICIALES_OPORTUNIDADES,
+} from "./vistaOportunidades";
 
 const columnas: ColumnaLista<Oportunidad>[] = [
   {
@@ -79,50 +80,29 @@ const columnas: ColumnaLista<Oportunidad>[] = [
   },
 ];
 
-export const OportunidadList = () => {
-  const { identity } = useCrmIdentity();
-  const { opcionesTodas } = useUsuarios();
-  const opcionesResponsable = opcionesTodas.map((opcion) =>
-    opcion.id === identity?.id
-      ? { ...opcion, name: `${opcion.name} (yo)` }
-      : opcion,
-  );
-
-  return (
-    <CrmList<Oportunidad>
-      resource="oportunidades"
-      titulo="Oportunidades"
-      sort={{ field: "creado_en", order: "DESC" }}
-      filterDefaultValues={{ resultado: "abierta" }}
-      buscar="Buscar por producto o cliente"
-      filtros={
-        <>
-          <FilterSelect
-            source="resultado"
-            etiqueta="Resultado"
-            opciones={RESULTADOS}
-            todas="Todas"
-          />
-          <FilterSelect source="etapa" etiqueta="Etapa" opciones={ETAPAS} />
-          <FilterSelect
-            source="asignado_a"
-            etiqueta="Responsable"
-            opciones={opcionesResponsable}
-          />
-        </>
-      }
-      acciones={
-        <Button asChild>
-          <Link to="/oportunidades/create">
-            <Plus />
-            Nueva oportunidad
-          </Link>
-        </Button>
-      }
-      columnas={columnas}
-      tituloFila={(oportunidad) => oportunidad.producto_servicio}
-      hrefDe={(oportunidad) => `/oportunidades/${oportunidad.id}`}
-      vacio="Todavía no hay oportunidades. Registrá la primera con “Nueva oportunidad”."
-    />
-  );
-};
+export const OportunidadList = () => (
+  <CrmList<Oportunidad>
+    resource="oportunidades"
+    titulo="Oportunidades"
+    sort={{ field: "creado_en", order: "DESC" }}
+    filterDefaultValues={FILTROS_INICIALES_OPORTUNIDADES}
+    buscar={BUSCAR_OPORTUNIDADES}
+    filtros={
+      <>
+        <FilterSelect
+          source="resultado"
+          etiqueta="Resultado"
+          opciones={RESULTADOS}
+          todas="Todas"
+        />
+        <FilterSelect source="etapa" etiqueta="Etapa" opciones={ETAPAS} />
+        <FiltroResponsable />
+      </>
+    }
+    acciones={<AccionesOportunidades />}
+    columnas={columnas}
+    tituloFila={(oportunidad) => oportunidad.producto_servicio}
+    hrefDe={(oportunidad) => `/oportunidades/${oportunidad.id}`}
+    vacio="Todavía no hay oportunidades. Registrá la primera con “Nueva oportunidad”."
+  />
+);

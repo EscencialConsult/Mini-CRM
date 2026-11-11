@@ -7,7 +7,7 @@ Versión reducida del CRM Escencial, con el mismo diseño y stack: **React 19 + 
 | Módulo | Qué incluye |
 |---|---|
 | **Clientes** | Alta, edición y baja. Persona (nombre y apellido) o empresa (razón social). CUIT/DNI validado (dígito verificador del CUIT), teléfono, email, dirección, estado activo/inactivo, vendedor asignado y próximo contacto. |
-| **Oportunidades** | Producto o servicio de interés, importe estimado, etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa) y resultado ganada/perdida con motivo. |
+| **Oportunidades** | Producto o servicio de interés, importe estimado, etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa) y resultado ganada/perdida con motivo. Se ven en un **Tablero** (una columna por etapa con las abiertas; arrastrar una tarjeta le cambia la etapa) o en el **Listado** con todas. |
 | **Actividades** | Llamadas, reuniones, notas y tareas; se registran como realizadas o se programan. Responsable, vencimiento y vínculo opcional a una oportunidad del cliente. |
 | **Panel de control** | Total y nuevos clientes, oportunidades abiertas (importe y ponderado), ventas ganadas y perdidas del período, actividades pendientes, resumen de ventas por mes, embudo por etapa y seguimiento propio o de todo el equipo. |
 | **Usuarios y permisos** | Inicio de sesión, roles administrador y vendedor, alta de usuarios por el administrador, asignación de clientes, perfil propio y **auditoría** de quién hizo cada acción. |
@@ -117,4 +117,4 @@ npm run typecheck && npm run lint && npm run build
 - Desplegar la Edge Function `users` y cerrar el registro público (necesita el token).
 - Publicar el sitio en Netlify con el alias de dominio de las landings y `VITE_LANDINGS_URL`.
 - Recordatorios por email (requiere proveedor de envío y una tarea programada).
-- Tablero kanban de oportunidades, importación/exportación CSV y reasignación masiva de clientes.
+- Importación/exportación CSV y reasignación masiva de clientes.

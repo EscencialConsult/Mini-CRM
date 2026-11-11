@@ -252,13 +252,25 @@ const ListaContenido = <T extends RaRecord>({
   );
 };
 
-const Barra = ({
+interface BarraFiltrosProps extends Pick<
+  CrmListProps<RaRecord>,
+  "buscar" | "filtros"
+> {
+  /** Filtros guardados que esta vista no muestra: no cuentan para "Limpiar" y se conservan. */
+  ocultos?: readonly string[];
+}
+
+/** Buscador, filtros y "Limpiar"; va dentro de un ListBase. */
+export const BarraFiltros = ({
   buscar,
   filtros,
-}: Pick<CrmListProps<RaRecord>, "buscar" | "filtros">) => {
+  ocultos = [],
+}: BarraFiltrosProps) => {
   const { filterValues, setFilters } = useListContext();
   const [reinicio, setReinicio] = useState(0);
-  const hayFiltros = Object.keys(filterValues).length > 0;
+  const hayFiltros = Object.keys(filterValues).some(
+    (clave) => !ocultos.includes(clave),
+  );
 
   if (!buscar && !filtros) return null;
   return (
@@ -271,7 +283,14 @@ const Barra = ({
           variant="ghost"
           size="sm"
           onClick={() => {
-            setFilters({}, {});
+            setFilters(
+              Object.fromEntries(
+                Object.entries(filterValues).filter(([clave]) =>
+                  ocultos.includes(clave),
+                ),
+              ),
+              {},
+            );
             setReinicio((valor) => valor + 1);
           }}
         >
@@ -317,7 +336,7 @@ export const CrmList = <T extends RaRecord>({
         <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
         {acciones && <div className="flex items-center gap-2">{acciones}</div>}
       </header>
-      <Barra buscar={buscar} filtros={filtros} />
+      <BarraFiltros buscar={buscar} filtros={filtros} />
       <ListaContenido<T>
         columnas={columnas}
         tituloFila={tituloFila}
