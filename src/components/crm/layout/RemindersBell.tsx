@@ -43,7 +43,7 @@ export const RemindersBell = () => {
   const recordatorios: Recordatorio[] = [
     {
       id: "actividades_vencidas",
-      texto: "actividades vencidas",
+      texto: "tareas vencidas",
       cantidad: conteo.actividades_vencidas,
       abrir: ir(() =>
         irA(
@@ -55,7 +55,7 @@ export const RemindersBell = () => {
     },
     {
       id: "actividades_hoy",
-      texto: "actividades para hoy",
+      texto: "tareas para hoy",
       cantidad: conteo.actividades_hoy,
       abrir: ir(() =>
         irA(

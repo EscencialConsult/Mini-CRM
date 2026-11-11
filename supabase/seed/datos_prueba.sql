@@ -276,7 +276,7 @@ begin
       end;
       insert into public.oportunidades
         (cliente_id, producto_servicio, descripcion, importe_estimado, etapa, probabilidad, resultado,
-         fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignado_a)
+         fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignados)
       values (
         v_cliente,
         pg_temp.azar(v_productos),
@@ -291,7 +291,7 @@ begin
           least(v_hoy, ((v_opp_alta + (5 + random() * 55) * interval '1 day') at time zone 'America/Argentina/Buenos_Aires')::date)
         end,
         case when v_res = 'perdida' then pg_temp.azar(v_motivos) end,
-        v_actor
+        array[v_actor]
       )
       returning id into v_id;
       v_opps := v_opps || v_id;
@@ -310,7 +310,7 @@ begin
         v_act_alta := greatest(v_alta, pg_temp.entre(v_alta, least(now(), v_fecha) - interval '1 hour'));
       end if;
       insert into public.actividades
-        (tipo, cliente_id, oportunidad_id, titulo, descripcion, fecha, completada, completada_en, asignado_a)
+        (tipo, cliente_id, oportunidad_id, titulo, descripcion, fecha, completada, completada_en, asignados)
       values (
         v_act_tipo,
         v_cliente,
@@ -326,7 +326,7 @@ begin
         v_fecha,
         v_completada,
         case when v_completada then v_fecha end,
-        v_actor
+        array[v_actor]
       )
       returning id into v_id;
       insert into alta values ('actividades', v_id, v_act_alta);
@@ -335,7 +335,7 @@ begin
 
   -- Avances de etapa y datos corregidos: dejan "Editó" en la auditoría
   for r in
-    select o.id, o.etapa, o.asignado_a, a.creado
+    select o.id, o.etapa, o.asignados[1] as asignado_a, a.creado
       from public.oportunidades o join alta a on a.tabla = 'oportunidades' and a.id = o.id
      where o.resultado = 'abierta' and o.etapa <> 'negociacion'
      order by random() limit 14
@@ -367,13 +367,13 @@ begin
       select id into v_cliente from public.clientes where estado = 'activo' order by random() limit 1;
     end if;
     perform pg_temp.como(v_usuario);
-    insert into public.actividades (tipo, cliente_id, titulo, fecha, asignado_a)
-    values ('tarea', v_cliente, 'Enviar la propuesta actualizada', now() - interval '3 days', v_usuario)
+    insert into public.actividades (tipo, cliente_id, titulo, fecha, asignados)
+    values ('tarea', v_cliente, 'Enviar la propuesta actualizada', now() - interval '3 days', array[v_usuario])
     returning id into v_id;
     insert into alta values ('actividades', v_id, now() - interval '9 days');
-    insert into public.actividades (tipo, cliente_id, titulo, fecha, asignado_a)
+    insert into public.actividades (tipo, cliente_id, titulo, fecha, asignados)
     values ('llamada', v_cliente, 'Llamar para confirmar la reunión',
-            (v_hoy + time '17:00') at time zone 'America/Argentina/Buenos_Aires', v_usuario)
+            (v_hoy + time '17:00') at time zone 'America/Argentina/Buenos_Aires', array[v_usuario])
     returning id into v_id;
     insert into alta values ('actividades', v_id, now() - interval '4 days');
 
@@ -491,7 +491,7 @@ begin
 
   -- Las tareas de seguimiento que ya pasaron, en su mayoría, se hicieron
   for r in
-    select a.id, a.asignado_a, a.fecha - k.delta as fecha_real
+    select a.id, a.asignados[1] as asignado_a, a.fecha - k.delta as fecha_real
       from public.actividades a join corrimiento k on k.tabla = 'actividades' and k.id = a.id
      where a.tipo = 'tarea' and not a.completada
   loop
@@ -516,7 +516,7 @@ begin
     perform pg_temp.como(coalesce(r.asignado_a, v_admin));
     insert into public.oportunidades
       (cliente_id, producto_servicio, importe_estimado, etapa, probabilidad, resultado,
-       fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignado_a)
+       fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignados)
     values (
       r.cliente_id,
       case when r.landing_id = v_l2 then 'Selección de personal' else 'Diplomatura en RRHH' end,
@@ -529,7 +529,7 @@ begin
         least(v_hoy, ((v_opp_alta + (3 + random() * 7) * interval '1 day') at time zone 'America/Argentina/Buenos_Aires')::date)
       end,
       case when v_res = 'perdida' then 'Postergó la decisión' end,
-      coalesce(r.asignado_a, v_admin)
+      array[coalesce(r.asignado_a, v_admin)]
     )
     returning id into v_id;
     insert into alta values ('oportunidades', v_id, v_opp_alta);

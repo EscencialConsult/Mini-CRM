@@ -9,7 +9,7 @@ import { ActividadList } from "./ActividadList";
 const tipoValido = (valor: string | null): TipoActividad | undefined =>
   TIPOS_ACTIVIDAD.find((tipo) => tipo.id === valor)?.id;
 
-/** Listado de actividades; el alta y el detalle se abren como modal sobre el listado. */
+/** Tareas en pestañas (pendientes, completadas, todas); el alta y el detalle se abren como modal. */
 export const ActividadesPage = () => {
   const ruta = useRecordRoute("actividades");
   const cerrar = useCloseRecord("actividades");

@@ -178,6 +178,8 @@ export interface LandingAutomation {
   /** "": no task, only the note with the answers */
   taskTitle: string;
   taskDueInDays: number;
+  /** Etiquetas que se le suman al cliente (nuevo o ya existente); las borradas se ignoran */
+  tagIds: number[];
 }
 
 export interface LandingContent {
@@ -290,6 +292,7 @@ export const createEmptyLandingContent = (): LandingContent => ({
     adminId: null,
     taskTitle: "Contactar al cliente",
     taskDueInDays: 1,
+    tagIds: [],
   },
   seo: { title: "", description: "", imageUrl: "" },
   privacy: { title: "Política de privacidad", text: "" },
@@ -340,6 +343,8 @@ const normalizeSection = (value: unknown, index: number): LandingSection => {
   };
 };
 
+const MAX_TAGS = 20;
+
 const normalizeAutomation = (value: unknown): LandingAutomation => {
   const automation = asObject(value);
   const due = Number(automation.taskDueInDays);
@@ -350,6 +355,15 @@ const normalizeAutomation = (value: unknown): LandingAutomation => {
     taskDueInDays: Number.isFinite(due)
       ? Math.min(365, Math.max(0, Math.round(due)))
       : 1,
+    tagIds: Array.isArray(automation.tagIds)
+      ? [
+          ...new Set(
+            automation.tagIds.filter(
+              (id): id is number => Number.isSafeInteger(id) && id > 0,
+            ),
+          ),
+        ].slice(0, MAX_TAGS)
+      : [],
   };
 };
 

@@ -38,7 +38,7 @@ export const OportunidadFormDialog = ({
         probabilidad: 10,
         resultado: "abierta",
         importe_estimado: 0,
-        asignado_a: identity?.id ?? null,
+        asignados: identity ? [identity.id] : [],
       }}
       acciones={(oportunidad) =>
         esAdministrador ? (
@@ -47,7 +47,7 @@ export const OportunidadFormDialog = ({
             id={oportunidad.id}
             previousData={oportunidad}
             descripcion={`la oportunidad “${oportunidad.producto_servicio}”`}
-            consecuencia="Sus actividades quedan en el cliente, sin oportunidad asociada."
+            consecuencia="Sus tareas quedan en el cliente, sin oportunidad asociada."
             onDeleted={onClose}
           />
         ) : null

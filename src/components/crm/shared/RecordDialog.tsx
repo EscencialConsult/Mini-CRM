@@ -12,6 +12,10 @@ import { cn } from "@/lib/utils";
 interface RecordDialogProps {
   title: ReactNode;
   description?: ReactNode;
+  /** A la izquierda del título (avatar, ícono). */
+  icon?: ReactNode;
+  /** Bajo el título: datos clave y accesos rápidos del registro. */
+  summary?: ReactNode;
   /** Acciones a la derecha del título (menú, eliminar…). */
   headerActions?: ReactNode;
   onClose: () => void;
@@ -29,6 +33,8 @@ const ANCHOS = {
 export const RecordDialog = ({
   title,
   description,
+  icon,
+  summary,
   headerActions,
   onClose,
   size = "lg",
@@ -48,11 +54,14 @@ export const RecordDialog = ({
     >
       <DialogHeader className="border-b px-6 py-4 pr-12">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <DialogTitle className="truncate text-lg">{title}</DialogTitle>
-            <DialogDescription className={description ? "mt-1" : "sr-only"}>
-              {description ?? "Detalle del registro"}
-            </DialogDescription>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {icon}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="truncate text-lg">{title}</DialogTitle>
+              <DialogDescription className={description ? "mt-1" : "sr-only"}>
+                {description ?? "Detalle del registro"}
+              </DialogDescription>
+            </div>
           </div>
           {headerActions && (
             <div className="flex shrink-0 items-center gap-2">
@@ -60,8 +69,13 @@ export const RecordDialog = ({
             </div>
           )}
         </div>
+        {summary && <div className="mt-3">{summary}</div>}
       </DialogHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      {/* Un formulario (RecordForm) ocupa este espacio y scrollea por dentro, con
+          el pie fijo; cualquier otro contenido scrollea acá */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {children}
+      </div>
     </DialogContent>
   </Dialog>
 );

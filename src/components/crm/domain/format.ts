@@ -33,6 +33,14 @@ export const formatMoneda = (valor: number | null | undefined): string =>
 export const formatNumero = (valor: number | null | undefined): string =>
   numero.format(valor ?? 0);
 
+/** 1 → "1 tarea", 3 → "3 tareas". */
+export const plural = (
+  cantidad: number,
+  singular: string,
+  pluralTexto: string,
+): string =>
+  `${formatNumero(cantidad)} ${cantidad === 1 ? singular : pluralTexto}`;
+
 /** 0.125 → "12,5 %". */
 export const formatPorcentaje = (fraccion: number): string =>
   porcentaje.format(fraccion);
@@ -90,3 +98,30 @@ export const iniciales = (nombre: string | null | undefined): string =>
     .slice(0, 2)
     .map((parte) => parte[0]?.toUpperCase())
     .join("");
+
+/** Enlace para llamar: `tel:` con los dígitos (y el + si lo tenía). */
+export const enlaceTelefono = (telefono: string | null | undefined) => {
+  const digitos = (telefono ?? "").replace(/\D/g, "");
+  if (digitos.length < 6) return null;
+  return `tel:${(telefono ?? "").trim().startsWith("+") ? "+" : ""}${digitos}`;
+};
+
+/**
+ * Enlace de WhatsApp (wa.me) para un teléfono argentino: sin el 0 ni el 00 de
+ * discado, y los celulares de 10 dígitos con el 549 delante.
+ */
+export const enlaceWhatsApp = (telefono: string | null | undefined) => {
+  let digitos = (telefono ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (digitos.startsWith("0")) digitos = digitos.slice(1);
+  if (digitos.length === 10) digitos = `549${digitos}`;
+  else if (
+    digitos.startsWith("54") &&
+    !digitos.startsWith("549") &&
+    digitos.length === 12
+  ) {
+    digitos = `549${digitos.slice(2)}`;
+  }
+  return digitos.length >= 11 && digitos.length <= 15
+    ? `https://wa.me/${digitos}`
+    : null;
+};

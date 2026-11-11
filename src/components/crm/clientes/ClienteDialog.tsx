@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { etiquetaDocumento, formatDocumento } from "../domain/format";
+import { nombreDe, TIPOS_CLIENTE } from "../domain/options";
 import type { Cliente } from "../domain/types";
 import { useEsAdministrador } from "../providers/authProvider";
 import { AutoriaInfo } from "../shared/AutoriaInfo";
@@ -21,6 +22,7 @@ import {
   ClienteOportunidades,
 } from "./ClienteRelacionados";
 import { ClienteInputs } from "./ClienteInputs";
+import { ClienteAvatar, ClienteResumen } from "./ClienteResumen";
 
 /** Baja lógica: el cliente pasa a inactivo (o vuelve a activo) sin perder su historial. */
 const CambiarEstadoButton = ({ cliente }: { cliente: Cliente }) => {
@@ -69,6 +71,9 @@ const CambiarEstadoButton = ({ cliente }: { cliente: Cliente }) => {
   );
 };
 
+/** Las pestañas sin formulario scrollean solas (Datos lo hace su RecordForm, con el pie fijo). */
+const PESTANA_CON_SCROLL = "min-h-0 overflow-y-auto";
+
 const Contenido = ({ onClose }: { onClose: () => void }) => {
   const cliente = useRecordContext<Cliente>();
   const esAdministrador = useEsAdministrador();
@@ -82,41 +87,43 @@ const Contenido = ({ onClose }: { onClose: () => void }) => {
           <EstadoClienteBadge estado={cliente.estado} />
         </span>
       }
-      description={
-        cliente.documento
-          ? `${etiquetaDocumento(cliente.documento)} ${formatDocumento(cliente.documento)}`
-          : "Ficha del cliente"
-      }
+      description={[
+        nombreDe(TIPOS_CLIENTE, cliente.tipo),
+        cliente.documento &&
+          `${etiquetaDocumento(cliente.documento)} ${formatDocumento(cliente.documento)}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
+      icon={<ClienteAvatar cliente={cliente} />}
+      summary={<ClienteResumen cliente={cliente} />}
       size="xl"
       onClose={onClose}
-      headerActions={
-        <>
-          <CambiarEstadoButton cliente={cliente} />
-          {esAdministrador && (
-            <DeleteRecordButton
-              resource="clientes"
-              id={cliente.id}
-              previousData={cliente}
-              descripcion={`al cliente ${cliente.nombre_completo}`}
-              consecuencia="También se eliminan todas sus oportunidades y actividades."
-              onDeleted={onClose}
-            />
-          )}
-        </>
-      }
+      headerActions={<CambiarEstadoButton cliente={cliente} />}
     >
-      <Tabs defaultValue="datos" className="gap-0">
+      <Tabs defaultValue="datos" className="min-h-0 flex-1 gap-0">
         <TabsList className="mx-6 mt-4 w-fit max-w-[calc(100%-3rem)] overflow-x-auto">
           <TabsTrigger value="datos">Datos</TabsTrigger>
           <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
-          <TabsTrigger value="actividades">Actividades</TabsTrigger>
+          <TabsTrigger value="actividades">Tareas</TabsTrigger>
           {esAdministrador && (
             <TabsTrigger value="historial">Historial</TabsTrigger>
           )}
         </TabsList>
-        <TabsContent value="datos">
+        <TabsContent value="datos" className="flex min-h-0 flex-col">
           <RecordForm
             onCancel={onClose}
+            footerActions={
+              esAdministrador && (
+                <DeleteRecordButton
+                  resource="clientes"
+                  id={cliente.id}
+                  previousData={cliente}
+                  descripcion={`al cliente ${cliente.nombre_completo}`}
+                  consecuencia="También se eliminan todas sus oportunidades y tareas."
+                  onDeleted={onClose}
+                />
+              )
+            }
             footerInfo={
               <AutoriaInfo
                 {...cliente}
@@ -131,14 +138,14 @@ const Contenido = ({ onClose }: { onClose: () => void }) => {
             <ClienteInputs />
           </RecordForm>
         </TabsContent>
-        <TabsContent value="oportunidades">
+        <TabsContent value="oportunidades" className={PESTANA_CON_SCROLL}>
           <ClienteOportunidades clienteId={cliente.id} />
         </TabsContent>
-        <TabsContent value="actividades">
+        <TabsContent value="actividades" className={PESTANA_CON_SCROLL}>
           <ClienteActividades clienteId={cliente.id} />
         </TabsContent>
         {esAdministrador && (
-          <TabsContent value="historial">
+          <TabsContent value="historial" className={PESTANA_CON_SCROLL}>
             <ClienteHistorial clienteId={cliente.id} />
           </TabsContent>
         )}

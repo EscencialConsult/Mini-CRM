@@ -11,8 +11,7 @@ import { TextInput } from "@/components/admin/text-input";
 import { ETAPAS, RESULTADOS, probabilidadDeEtapa } from "../domain/options";
 import type { Etapa, Resultado } from "../domain/types";
 import { validarImporte, validarProbabilidad } from "../domain/validators";
-import { SelectInputOpcional } from "../shared/SelectInputOpcional";
-import { useUsuarios } from "../shared/useUsuarios";
+import { ResponsablesInput } from "../shared/ResponsablesInput";
 
 interface OportunidadInputsProps {
   /** El cliente viene dado (alta desde la ficha del cliente): no se elige. */
@@ -24,7 +23,6 @@ const aNulo = (valor: string): string | null => valor.trim() || null;
 /** Campos de la oportunidad (alta y edición). Va dentro de un <Form>. */
 export const OportunidadInputs = ({ clienteFijo }: OportunidadInputsProps) => {
   const { setValue } = useFormContext();
-  const { opcionesActivas } = useUsuarios();
   const resultado = useWatch({ name: "resultado" }) as Resultado | undefined;
   const cerrada = resultado !== undefined && resultado !== "abierta";
 
@@ -96,13 +94,8 @@ export const OportunidadInputs = ({ clienteFijo }: OportunidadInputsProps) => {
           choices={RESULTADOS}
           validate={required()}
         />
-        <SelectInputOpcional
-          source="asignado_a"
-          label="Responsable"
-          choices={opcionesActivas}
-          emptyText="Sin asignar"
-        />
       </div>
+      <ResponsablesInput />
 
       {resultado === "perdida" && (
         <TextInput

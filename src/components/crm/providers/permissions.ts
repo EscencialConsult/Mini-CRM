@@ -17,6 +17,8 @@ const PERMISOS: Record<Rol, Record<string, readonly Accion[]>> = {
     usuarios: TODAS,
     auditoria: ["list", "show"],
     landings: TODAS,
+    // El vendedor crea etiquetas desde el cliente; la pantalla del catálogo es del administrador
+    etiquetas: TODAS,
   },
   vendedor: {
     // Borrado definitivo solo del administrador; el vendedor inactiva

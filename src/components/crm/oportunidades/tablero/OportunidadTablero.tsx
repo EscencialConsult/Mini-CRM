@@ -12,6 +12,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { ETAPAS, probabilidadDeEtapa } from "../../domain/options";
 import type { Oportunidad } from "../../domain/types";
 import { BarraFiltros } from "../../shared/CrmList";
+import { FiltroSoloEmpresas } from "../../shared/ListControls";
 import {
   AccionesOportunidades,
   FiltroResponsable,
@@ -139,9 +140,7 @@ export const OportunidadTablero = () => (
     <section className="space-y-4 py-2">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-0.5">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Oportunidades
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Tablero</h1>
           <p className="text-sm text-muted-foreground">
             Abiertas, por etapa. Arrastrá una tarjeta para cambiarla de etapa;
             para marcarla ganada o perdida, abrila.
@@ -151,7 +150,12 @@ export const OportunidadTablero = () => (
       </header>
       <BarraFiltros
         buscar={BUSCAR_OPORTUNIDADES}
-        filtros={<FiltroResponsable />}
+        filtros={
+          <>
+            <FiltroResponsable />
+            <FiltroSoloEmpresas />
+          </>
+        }
         ocultos={FILTROS_DEL_LISTADO}
       />
       <Tablero />

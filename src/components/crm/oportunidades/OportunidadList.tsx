@@ -3,7 +3,7 @@ import { ETAPAS, RESULTADOS } from "../domain/options";
 import type { Oportunidad } from "../domain/types";
 import { EtapaBadge, ResultadoBadge } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
-import { FilterSelect } from "../shared/ListControls";
+import { FilterSelect, FiltroSoloEmpresas } from "../shared/ListControls";
 import {
   AccionesOportunidades,
   FiltroResponsable,
@@ -73,9 +73,9 @@ const columnas: ColumnaLista<Oportunidad>[] = [
   },
   {
     id: "responsable",
-    encabezado: "Responsable",
+    encabezado: "Responsables",
     orden: "asignado_nombre",
-    etiquetaTarjeta: "Responsable",
+    etiquetaTarjeta: "Responsables",
     celda: (oportunidad) => oportunidad.asignado_nombre ?? "Sin asignar",
   },
 ];
@@ -83,7 +83,7 @@ const columnas: ColumnaLista<Oportunidad>[] = [
 export const OportunidadList = () => (
   <CrmList<Oportunidad>
     resource="oportunidades"
-    titulo="Oportunidades"
+    titulo="Tablero"
     sort={{ field: "creado_en", order: "DESC" }}
     filterDefaultValues={FILTROS_INICIALES_OPORTUNIDADES}
     buscar={BUSCAR_OPORTUNIDADES}
@@ -97,6 +97,7 @@ export const OportunidadList = () => (
         />
         <FilterSelect source="etapa" etiqueta="Etapa" opciones={ETAPAS} />
         <FiltroResponsable />
+        <FiltroSoloEmpresas />
       </>
     }
     acciones={<AccionesOportunidades />}

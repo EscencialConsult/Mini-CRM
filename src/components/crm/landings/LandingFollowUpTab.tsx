@@ -2,6 +2,8 @@ import { Check } from "lucide-react";
 import { useTranslate } from "ra-core";
 import { useMemo } from "react";
 
+import { SelectorEtiquetas } from "../etiquetas/SelectorEtiquetas";
+import { useEtiquetas } from "../etiquetas/useEtiquetas";
 import { useUsuarios } from "../shared/useUsuarios";
 import {
   EditorSection,
@@ -30,7 +32,12 @@ export const LandingFollowUpTab = ({
   const t = (key: string, options?: object) =>
     translate(`${FOLLOW_UP}.${key}`, options);
   const { usuarios } = useUsuarios();
-  const { adminId, taskTitle, taskDueInDays } = content.automation;
+  const { porId: etiquetasPorId } = useEtiquetas();
+  const { adminId, taskTitle, taskDueInDays, tagIds } = content.automation;
+  const tagNames = tagIds.flatMap((id) => {
+    const etiqueta = etiquetasPorId.get(id);
+    return etiqueta ? `«${etiqueta.nombre}»` : [];
+  });
 
   // In the order the database picks "the first active one"
   const admins = useMemo(
@@ -54,6 +61,9 @@ export const LandingFollowUpTab = ({
     t("client_new", { name: nameOf(adminId) || t("admin_first") }),
     t("client_known"),
     t("note"),
+    ...(tagNames.length
+      ? [t("tags_summary", { names: tagNames.join(", ") })]
+      : []),
     taskTitle.trim()
       ? t("task", { title: taskTitle.trim(), when })
       : t("task_none"),
@@ -96,6 +106,18 @@ export const LandingFollowUpTab = ({
           onChange={(value) =>
             patch((draft) => {
               draft.automation.adminId = value || null;
+            })
+          }
+        />
+      </EditorSection>
+
+      <EditorSection title={t("tags")} help={t("tags_hint")}>
+        <SelectorEtiquetas
+          aria-label={t("tags_label")}
+          value={tagIds}
+          onChange={(ids) =>
+            patch((draft) => {
+              draft.automation.tagIds = ids;
             })
           }
         />

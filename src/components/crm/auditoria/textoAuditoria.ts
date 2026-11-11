@@ -21,9 +21,9 @@ const SUSTANTIVOS: Record<EntidadAuditoria, Sustantivo> = {
     conA: "a la oportunidad",
   },
   actividades: {
-    conArticulo: "la actividad",
-    conDe: "de la actividad",
-    conA: "a la actividad",
+    conArticulo: "la tarea",
+    conDe: "de la tarea",
+    conA: "a la tarea",
   },
   usuarios: {
     conArticulo: "el usuario",
@@ -80,6 +80,7 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   estado: "Estado",
   proximo_contacto: "Próximo contacto",
   asignado_a: "Responsable",
+  asignados: "Responsables",
   cliente_id: "Cliente",
   producto_servicio: "Producto o servicio",
   descripcion: "Detalle",
@@ -99,6 +100,7 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   activo: "Activo",
   slug: "Dirección web",
   landing_id: "Landing de origen",
+  etiquetas: "Etiquetas",
 };
 
 /** Campos internos que no aportan al detalle de un cambio. */

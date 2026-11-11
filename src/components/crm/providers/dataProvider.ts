@@ -12,6 +12,7 @@ import {
   type GetOneParams,
   type Identifier,
   type RaRecord,
+  type SortPayload,
   type UpdateManyParams,
   type UpdateParams,
 } from "ra-core";
@@ -42,6 +43,13 @@ interface ResourceConfig {
    * vistas, solo en minúsculas en la tabla de usuarios.
    */
   busqueda?: "sin_tildes" | "minusculas";
+  /**
+   * Varios responsables (columna `asignados`, una lista): el filtro
+   * `asignado_a` de la pantalla busca a esa persona entre ellos.
+   */
+  variosResponsables?: boolean;
+  /** Columnas que son listas: el filtro `columna: valor` busca ese valor en la lista. */
+  listas?: readonly string[];
 }
 
 const RESOURCES: Record<string, ResourceConfig> = {
@@ -60,8 +68,16 @@ const RESOURCES: Record<string, ResourceConfig> = {
       "estado",
       "proximo_contacto",
       "asignado_a",
+      "etiquetas",
     ],
     busqueda: "sin_tildes",
+    listas: ["etiquetas"],
+  },
+  // Cualquiera crea; renombrar, cambiar el color y borrar es del administrador (RLS)
+  etiquetas: {
+    table: "etiquetas",
+    view: "etiquetas_resumen",
+    writable: ["nombre", "color"],
   },
   oportunidades: {
     table: "oportunidades",
@@ -76,9 +92,10 @@ const RESOURCES: Record<string, ResourceConfig> = {
       "resultado",
       "fecha_cierre_estimada",
       "motivo_perdida",
-      "asignado_a",
+      "asignados",
     ],
     busqueda: "sin_tildes",
+    variosResponsables: true,
   },
   actividades: {
     table: "actividades",
@@ -91,9 +108,10 @@ const RESOURCES: Record<string, ResourceConfig> = {
       "descripcion",
       "fecha",
       "completada",
-      "asignado_a",
+      "asignados",
     ],
     busqueda: "sin_tildes",
+    variosResponsables: true,
   },
   usuarios: {
     table: "usuarios",
@@ -124,6 +142,7 @@ export class LandingNoLista extends Error {
 
 const MENSAJE_DOCUMENTO_DUPLICADO = "Ya existe un cliente con ese documento";
 const MENSAJE_SIN_PERMISO = "No tenés permiso para realizar esta acción";
+const MENSAJE_ETIQUETA_DUPLICADA = "Ya existe una etiqueta con ese nombre";
 
 interface PostgrestErrorBody {
   code?: string;
@@ -140,6 +159,12 @@ const traducirError = (error: unknown): unknown => {
     return new HttpError("Ya existe una landing con esa dirección", 409, {
       ...body,
       errors: { slug: "Ya existe una landing con esa dirección" },
+    });
+  }
+  if (body.code === "23505" && texto.includes("etiquetas_nombre_key")) {
+    return new HttpError(MENSAJE_ETIQUETA_DUPLICADA, 409, {
+      ...body,
+      errors: { nombre: MENSAJE_ETIQUETA_DUPLICADA },
     });
   }
   if (body.code === "23505" && texto.includes("clientes_documento_key")) {
@@ -185,12 +210,47 @@ const sanearBusqueda = (termino: string): string =>
 const sinTildes = (texto: string): string =>
   texto.normalize("NFD").replace(/\p{M}/gu, "");
 
-/** Traduce el filtro `q` a `busqueda@ilike`: cada palabra debe aparecer. */
-const aFiltroBusqueda = (
+/** `asignado_a: id` → `asignados@cs: {id}` (la lista contiene a esa persona). */
+const aFiltroResponsables = (
   resource: string,
   filter: Record<string, unknown> | undefined,
 ): Record<string, unknown> => {
-  const { q, ...resto } = filter ?? {};
+  const { asignado_a: responsable, ...resto } = filter ?? {};
+  if (!RESOURCES[resource]?.variosResponsables) return filter ?? {};
+  return typeof responsable === "string" && responsable
+    ? { ...resto, "asignados@cs": `{${responsable}}` }
+    : resto;
+};
+
+/** `etiquetas: 3` → `etiquetas@cs: {3}` (la lista contiene ese valor). */
+const aFiltroListas = (
+  resource: string,
+  filter: Record<string, unknown>,
+): Record<string, unknown> => {
+  const listas = RESOURCES[resource]?.listas ?? [];
+  if (!listas.length) return filter;
+  return Object.fromEntries(
+    Object.entries(filter).map(([clave, valor]) =>
+      listas.includes(clave) &&
+      (typeof valor === "number" || (typeof valor === "string" && valor))
+        ? [`${clave}@cs`, `{${valor}}`]
+        : [clave, valor],
+    ),
+  );
+};
+
+/**
+ * Traduce el filtro `q` a `busqueda@ilike` (cada palabra debe aparecer) y el de
+ * responsable a la lista de responsables, donde corresponde.
+ */
+const aFiltroApi = (
+  resource: string,
+  filter: Record<string, unknown> | undefined,
+): Record<string, unknown> => {
+  const { q, ...resto } = aFiltroListas(
+    resource,
+    aFiltroResponsables(resource, filter),
+  );
   const modo = RESOURCES[resource]?.busqueda;
   if (typeof q !== "string" || !modo) return resto;
 
@@ -255,13 +315,30 @@ export interface CrmDataProvider extends DataProvider {
   subirImagenLanding(archivo: File): Promise<string>;
 }
 
+const ORDEN_ASC = "asc";
+const ORDEN_DESC = "desc.nullslast";
+
+/**
+ * Suma el id como desempate: con valores repetidos (misma fecha, mismo
+ * estado) el orden no es fijo y una fila puede repetirse o saltearse entre
+ * páginas. ra-data-postgrest arma `order=<campo>.<sentido>`: el sentido va
+ * dentro del campo y el id queda último, ascendente.
+ */
+function conDesempate(sort: SortPayload): SortPayload;
+function conDesempate(sort: SortPayload | undefined): SortPayload | undefined;
+function conDesempate(sort: SortPayload | undefined) {
+  if (!sort?.field || sort.field === "id") return sort;
+  const sentido = sort.order === "DESC" ? ORDEN_DESC : ORDEN_ASC;
+  return { field: `${sort.field}.${sentido},id`, order: "ASC" };
+}
+
 export const getDataProvider = (): CrmDataProvider => {
   const client = getSupabaseClient();
   const base = supabaseDataProvider({
     instanceUrl: import.meta.env.VITE_SUPABASE_URL,
     apiKey: import.meta.env.VITE_SB_PUBLISHABLE_KEY,
     supabaseClient: client,
-    sortOrder: "asc,desc.nullslast" as never,
+    sortOrder: `${ORDEN_ASC},${ORDEN_DESC}` as never,
   });
 
   /** Relee el registro desde la vista para devolver también los nombres resueltos. */
@@ -311,7 +388,8 @@ export const getDataProvider = (): CrmDataProvider => {
       guard(() =>
         base.getList(nombreLectura(resource), {
           ...params,
-          filter: aFiltroBusqueda(resource, params.filter),
+          sort: conDesempate(params.sort),
+          filter: aFiltroApi(resource, params.filter),
         }),
       ),
     getOne: (resource: string, params: GetOneParams) =>
@@ -322,7 +400,8 @@ export const getDataProvider = (): CrmDataProvider => {
       guard(() =>
         base.getManyReference(nombreLectura(resource), {
           ...params,
-          filter: aFiltroBusqueda(resource, params.filter),
+          sort: conDesempate(params.sort),
+          filter: aFiltroApi(resource, params.filter),
         }),
       ),
     create: (resource: string, params: CreateParams) =>

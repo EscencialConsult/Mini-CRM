@@ -6,12 +6,12 @@ Versión reducida del CRM Escencial, con el mismo diseño y stack: **React 19 + 
 
 | Módulo | Qué incluye |
 |---|---|
-| **Clientes** | Alta, edición y baja. Persona (nombre y apellido) o empresa (razón social). CUIT/DNI validado (dígito verificador del CUIT), teléfono, email, dirección, estado activo/inactivo, vendedor asignado y próximo contacto. |
-| **Oportunidades** | Producto o servicio de interés, importe estimado, etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa) y resultado ganada/perdida con motivo. Se ven en un **Tablero** (una columna por etapa con las abiertas; arrastrar una tarjeta le cambia la etapa) o en el **Listado** con todas. |
-| **Actividades** | Llamadas, reuniones, notas y tareas; se registran como realizadas o se programan. Responsable, vencimiento y vínculo opcional a una oportunidad del cliente. |
-| **Panel de control** | Total y nuevos clientes, oportunidades abiertas (importe y ponderado), ventas ganadas y perdidas del período, actividades pendientes, resumen de ventas por mes, embudo por etapa y seguimiento propio o de todo el equipo. |
+| **Clientes** | Alta, edición y baja. Persona (nombre y apellido) o empresa (razón social). CUIT/DNI validado (dígito verificador del CUIT), teléfono, email, dirección, estado activo/inactivo, vendedor asignado, próximo contacto y **etiquetas** de colores (se crean escribiéndolas; filtro y búsqueda por etiqueta). La ficha abre con un resumen (vendedor, próximo contacto, etiquetas) y accesos para llamar, escribir por WhatsApp o mandar un email. |
+| **Tablero** (oportunidades) | Producto o servicio de interés, importe estimado, etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa), uno o varios responsables y resultado ganada/perdida con motivo. Se ven en un **Tablero** (una columna por etapa con las abiertas; arrastrar una tarjeta le cambia la etapa) o en el **Listado** con todas; ambos con el filtro **Solo empresas**. |
+| **Tareas** | Llamadas, reuniones, notas y otras tareas; se registran como realizadas o se programan. Uno o varios **responsables** (todos iguales: cualquiera la completa para todos), vencimiento y vínculo opcional a una oportunidad del cliente. Pestañas **Pendientes** (la que vence antes, primero), **Completadas** (la última, primero) y **Todas**; búsqueda y filtros (incluido **Solo empresas**) se aplican dentro de cada una. Cada fila tiene **Completar** / **Reabrir**; las casillas seleccionan varias para **completarlas, reabrirlas, reprogramarlas** (mañana, en una semana u otro día, cada una a su hora), cambiarles los **responsables** (agregar o quitar a alguien, o reemplazarlos) o **eliminarlas** juntas. En la base y en el código el recurso sigue siendo `actividades`. |
+| **Panel de control** | Total y nuevos clientes, oportunidades abiertas (importe y ponderado), ventas ganadas y perdidas del período, tareas pendientes, resumen de ventas por mes, embudo por etapa y seguimiento propio o de todo el equipo. |
 | **Usuarios y permisos** | Inicio de sesión, roles administrador y vendedor, alta de usuarios por el administrador, asignación de clientes, perfil propio y **auditoría** de quién hizo cada acción. |
-| **Landings** | Páginas públicas con formulario, editadas en el lugar a partir de una plantilla (textos, secciones, preguntas, diseño, botón de WhatsApp, píxeles, privacidad y enlaces de campaña). Cada envío crea (o reconoce, por email o teléfono) un **cliente asignado al administrador**, una nota con las respuestas, el consentimiento y la campaña, y una **tarea** de seguimiento. Resultados por landing: visitas, envíos, clientes nuevos, conversión, ventas, origen y campaña. |
+| **Landings** | Páginas públicas con formulario, editadas en el lugar a partir de una plantilla (textos, secciones, preguntas, diseño, botón de WhatsApp, píxeles, privacidad y enlaces de campaña). Cada envío crea (o reconoce, por email o teléfono) un **cliente asignado al administrador**, una nota con las respuestas, el consentimiento y la campaña, y una **tarea** de seguimiento; cada landing puede sumarle **etiquetas** al cliente. Resultados por landing: visitas, envíos, clientes nuevos, conversión, ventas, origen y campaña. |
 
 Recordatorios de seguimiento: campana en el menú y bloque “Seguimiento” del panel (tareas y contactos vencidos o de hoy). Solo dentro de la app.
 
@@ -19,14 +19,16 @@ Recordatorios de seguimiento: campana en el menú y bloque “Seguimiento” del
 
 | Acción | Administrador | Vendedor |
 |---|---|---|
-| Ver y editar clientes, oportunidades y actividades | Todo | Todo |
+| Ver y editar clientes, oportunidades y tareas | Todo | Todo |
 | Crear clientes | Los asigna a quien quiera | Quedan asignados a él |
 | Reasignar clientes | Sí | No |
 | Dar de baja (inactivar) un cliente | Sí | Sí |
 | Eliminar cliente u oportunidad (borrado definitivo, con advertencia) | Sí | No |
-| Eliminar una actividad | Cualquiera | Solo las que creó |
+| Eliminar una tarea | Cualquiera | Solo las que creó |
 | Gestionar usuarios (alta, rol, desactivar, restablecer clave) | Sí | No |
 | Ver auditoría e historial por cliente | Sí | No |
+| Crear etiquetas y ponérselas a los clientes | Sí | Sí |
+| Renombrar, cambiar el color o borrar etiquetas (pantalla Etiquetas) | Sí | No |
 | Crear, editar, publicar y despublicar landings | Sí | Sí |
 | Eliminar una landing (borrado definitivo; antes hay que despublicarla) | Sí | No |
 
@@ -53,6 +55,8 @@ npm run db:push                                  # aplica las migraciones pendie
 npm run db:psql -- -c "select count(*) from clientes"
 npm run admin:crear -- correo@dominio.com Nombre Apellido [clave] [administrador|vendedor]
 ```
+
+Datos de prueba (ficticios, solo para desarrollo): `supabase/seed/datos_prueba.sql` y, después, `supabase/seed/etiquetas_prueba.sql`, cada uno con `npm run db:psql -- -v ON_ERROR_STOP=1 -f <archivo>`.
 
 La zona horaria de negocio es `America/Argentina/Buenos_Aires` (funciones del panel y recordatorios).
 

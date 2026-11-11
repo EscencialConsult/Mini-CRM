@@ -34,6 +34,15 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-viz-1: var(--viz-1);
+  --color-etiqueta-gris: var(--etiqueta-gris);
+  --color-etiqueta-rojo: var(--etiqueta-rojo);
+  --color-etiqueta-naranja: var(--etiqueta-naranja);
+  --color-etiqueta-ambar: var(--etiqueta-ambar);
+  --color-etiqueta-verde: var(--etiqueta-verde);
+  --color-etiqueta-turquesa: var(--etiqueta-turquesa);
+  --color-etiqueta-azul: var(--etiqueta-azul);
+  --color-etiqueta-violeta: var(--etiqueta-violeta);
+  --color-etiqueta-rosa: var(--etiqueta-rosa);
   --color-viz-2: var(--viz-2);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -76,6 +85,16 @@
   --warning: oklch(0.85 0.15 85);
   --warning-foreground: oklch(0.4 0.09 70);
   --viz-1: #2a78d6;
+  /* Etiquetas de clientes: texto y punto; el fondo es el mismo color al 15% */
+  --etiqueta-gris: oklch(0.5 0.02 250);
+  --etiqueta-rojo: oklch(0.55 0.2 25);
+  --etiqueta-naranja: oklch(0.58 0.17 50);
+  --etiqueta-ambar: oklch(0.56 0.12 75);
+  --etiqueta-verde: oklch(0.52 0.14 150);
+  --etiqueta-turquesa: oklch(0.52 0.1 195);
+  --etiqueta-azul: oklch(0.52 0.16 255);
+  --etiqueta-violeta: oklch(0.52 0.18 300);
+  --etiqueta-rosa: oklch(0.56 0.19 350);
   --viz-2: #eb6834;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -127,6 +146,15 @@
   --warning: oklch(0.45 0.09 80);
   --warning-foreground: oklch(0.88 0.13 85);
   --viz-1: #3987e5;
+  --etiqueta-gris: oklch(0.75 0.02 250);
+  --etiqueta-rojo: oklch(0.74 0.15 25);
+  --etiqueta-naranja: oklch(0.78 0.14 55);
+  --etiqueta-ambar: oklch(0.82 0.13 85);
+  --etiqueta-verde: oklch(0.76 0.14 150);
+  --etiqueta-turquesa: oklch(0.78 0.1 195);
+  --etiqueta-azul: oklch(0.75 0.13 255);
+  --etiqueta-violeta: oklch(0.76 0.14 300);
+  --etiqueta-rosa: oklch(0.76 0.15 350);
   --viz-2: #d95926;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);

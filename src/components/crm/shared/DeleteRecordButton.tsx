@@ -1,16 +1,10 @@
 import { useDelete, useNotify, type Identifier, type RaRecord } from "ra-core";
-import { TriangleAlert, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
+import { ConfirmarBorrado } from "./ConfirmarBorrado";
 
 interface DeleteRecordButtonProps {
   resource: string;
@@ -23,7 +17,10 @@ interface DeleteRecordButtonProps {
   onDeleted: () => void;
 }
 
-/** Borrado definitivo: siempre pide confirmación y avisa que no se puede deshacer. */
+/**
+ * Borrado definitivo: siempre pide confirmación y avisa que no se puede
+ * deshacer. Va en el pie del modal, junto a Cancelar.
+ */
 export const DeleteRecordButton = ({
   resource,
   id,
@@ -61,55 +58,21 @@ export const DeleteRecordButton = ({
       <Button
         type="button"
         variant="outline"
-        size="sm"
         className="text-destructive hover:text-destructive"
         onClick={() => setAbierto(true)}
       >
         <Trash2 />
-        Eliminar
+        {/* En móvil solo el ícono, para que los botones del pie entren en una fila */}
+        <span className="max-sm:sr-only">Eliminar</span>
       </Button>
-      <Dialog
-        open={abierto}
-        onOpenChange={(valor) => !isPending && setAbierto(valor)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <TriangleAlert aria-hidden className="size-5" />
-              Eliminar definitivamente
-            </DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-2 text-left">
-                <p>
-                  Vas a eliminar <strong>{descripcion}</strong>.
-                </p>
-                {consecuencia && <p>{consecuencia}</p>}
-                <p className="font-medium text-foreground">
-                  Es un borrado definitivo: no se puede deshacer ni recuperar.
-                </p>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => setAbierto(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              loading={isPending}
-              onClick={confirmar}
-            >
-              Eliminar definitivamente
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmarBorrado
+        abierto={abierto}
+        onAbiertoChange={setAbierto}
+        descripcion={descripcion}
+        detalle={consecuencia}
+        cargando={isPending}
+        onConfirmar={confirmar}
+      />
     </>
   );
 };

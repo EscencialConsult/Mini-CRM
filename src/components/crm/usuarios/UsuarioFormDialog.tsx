@@ -212,12 +212,12 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
             .mutateAsync(valores as ValoresUsuario)
             .catch(() => undefined);
         }}
-        className="flex flex-col"
+        className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="grid gap-4 px-6 py-5">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto bg-background px-6 py-5">
           <Campos editando={editando} esUnoMismo={esUnoMismo} />
         </div>
-        <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background px-6 py-3">
+        <div className="flex shrink-0 justify-end gap-2 border-t bg-background px-6 py-3">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>

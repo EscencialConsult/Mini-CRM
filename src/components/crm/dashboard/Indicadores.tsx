@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { formatMoneda, formatNumero } from "../domain/format";
+import { formatMoneda, formatNumero, plural } from "../domain/format";
 import type { PanelIndicadores } from "../domain/types";
 import { useIrAListado } from "../shared/useIrAListado";
 import type { RangoFechas } from "./periodos";
@@ -46,9 +46,6 @@ const Indicador = ({
     </button>
   </Card>
 );
-
-const plural = (cantidad: number, singular: string, pluralTexto: string) =>
-  `${formatNumero(cantidad)} ${cantidad === 1 ? singular : pluralTexto}`;
 
 const Tarjetas = ({ datos }: { datos: PanelIndicadores }) => {
   const irA = useIrAListado();
@@ -103,7 +100,7 @@ const Tarjetas = ({ datos }: { datos: PanelIndicadores }) => {
         }
       />
       <Indicador
-        titulo="Actividades pendientes"
+        titulo="Tareas pendientes"
         valor={formatNumero(datos.actividades_pendientes)}
         detalle={
           datos.actividades_vencidas > 0

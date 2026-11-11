@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { ActividadCheck } from "../actividades/ActividadCheck";
+import { ActividadCompletar } from "../actividades/ActividadCompletar";
 import { ActividadFormDialog } from "../actividades/ActividadFormDialog";
 import { TipoActividadChip } from "../actividades/TipoActividad";
 import { CambiosDetalle } from "../auditoria/CambiosDetalle";
@@ -167,7 +167,7 @@ export const ClienteActividades = ({ clienteId }: { clienteId: number }) => {
   return (
     <div className="px-6 py-5">
       <Encabezado
-        titulo="Actividades y seguimiento"
+        titulo="Tareas y seguimiento"
         accion={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -190,10 +190,7 @@ export const ClienteActividades = ({ clienteId }: { clienteId: number }) => {
           </DropdownMenu>
         }
       />
-      <Estado
-        seccion={seccion}
-        vacio="Todavía no hay actividades con este cliente."
-      >
+      <Estado seccion={seccion} vacio="Todavía no hay tareas con este cliente.">
         {(actividades) => (
           <ul className="divide-y rounded-lg border">
             {actividades.map((actividad) => (
@@ -201,7 +198,6 @@ export const ClienteActividades = ({ clienteId }: { clienteId: number }) => {
                 key={actividad.id}
                 className="flex items-center gap-3 px-4 py-3"
               >
-                <ActividadCheck actividad={actividad} />
                 <button
                   type="button"
                   onClick={() => setFormulario({ id: String(actividad.id) })}
@@ -219,6 +215,7 @@ export const ClienteActividades = ({ clienteId }: { clienteId: number }) => {
                   </span>
                 </button>
                 {actividad.vencida && <Pill tono="peligro">Vencida</Pill>}
+                <ActividadCompletar actividad={actividad} />
               </li>
             ))}
           </ul>

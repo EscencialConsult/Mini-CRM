@@ -320,6 +320,12 @@ export const mensajesLandings = {
       note: "Se agrega a su historial una nota con las respuestas y la campaña.",
       task: "Se crea la tarea «%{title}» con vencimiento %{when}.",
       task_none: "No se crea ninguna tarea.",
+      tags_summary:
+        "Al cliente (nuevo o ya existente) se le suman las etiquetas %{names}.",
+      tags: "Etiquetas",
+      tags_hint:
+        "Sirven para reconocer de qué campaña vino cada cliente. Se crean escribiéndolas.",
+      tags_label: "Etiquetas para los clientes de esta landing",
       when_today: "hoy",
       when_days:
         "dentro de %{smart_count} día |||| dentro de %{smart_count} días",

@@ -2,16 +2,15 @@ import { required, useGetList } from "ra-core";
 import { useWatch } from "react-hook-form";
 
 import { AutocompleteInput } from "@/components/admin/autocomplete-input";
-import { BooleanInput } from "@/components/admin/boolean-input";
-import { DateTimeInput } from "@/components/admin/date-time-input";
 import { ReferenceInput } from "@/components/admin/reference-input";
-import { SelectInput } from "@/components/admin/select-input";
 import { TextInput } from "@/components/admin/text-input";
 
-import { TIPOS_ACTIVIDAD } from "../domain/options";
 import type { Oportunidad, TipoActividad } from "../domain/types";
 import { SelectInputOpcional } from "../shared/SelectInputOpcional";
-import { useUsuarios } from "../shared/useUsuarios";
+import { ResponsablesInput } from "../shared/ResponsablesInput";
+import { SeccionFormulario } from "../shared/SeccionFormulario";
+import { FechaTareaInput } from "./FechaTareaInput";
+import { TipoTareaInput } from "./TipoTareaInput";
 
 interface ActividadInputsProps {
   /** El cliente viene dado (alta desde la ficha del cliente): no se elige. */
@@ -20,21 +19,7 @@ interface ActividadInputsProps {
 
 const aNulo = (valor: string): string | null => valor.trim() || null;
 
-const ETIQUETA_FECHA: Record<TipoActividad, string> = {
-  llamada: "Fecha y hora de la llamada",
-  reunion: "Fecha y hora de la reunión",
-  nota: "Fecha",
-  tarea: "Vence",
-};
-
-const ETIQUETA_REALIZADA: Record<TipoActividad, string> = {
-  llamada: "Ya se realizó (si no, queda programada)",
-  reunion: "Ya se realizó (si no, queda programada)",
-  nota: "",
-  tarea: "Tarea completada",
-};
-
-/** Oportunidades abiertas o cerradas del cliente elegido, para vincular la actividad. */
+/** Oportunidades abiertas o cerradas del cliente elegido, para vincular la tarea. */
 const OportunidadDelCliente = () => {
   const clienteId = useWatch({ name: "cliente_id" }) as number | undefined;
   const { data } = useGetList<Oportunidad>(
@@ -59,47 +44,14 @@ const OportunidadDelCliente = () => {
   );
 };
 
-/** Campos de la actividad (alta y edición). Va dentro de un <Form>. */
+/** Campos de la tarea (alta y edición), en secciones. Va dentro de un <Form>. */
 export const ActividadInputs = ({ clienteFijo }: ActividadInputsProps) => {
-  const { opcionesActivas } = useUsuarios();
   const tipo = useWatch({ name: "tipo" }) as TipoActividad | undefined;
   const esNota = tipo === "nota";
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <SelectInput
-          source="tipo"
-          label="Tipo de actividad"
-          choices={TIPOS_ACTIVIDAD}
-          validate={required()}
-        />
-        {!esNota && (
-          <DateTimeInput
-            source="fecha"
-            label={ETIQUETA_FECHA[tipo ?? "tarea"]}
-            validate={required()}
-          />
-        )}
-      </div>
-
-      {!clienteFijo && (
-        <ReferenceInput
-          source="cliente_id"
-          reference="clientes"
-          sort={{ field: "nombre_completo", order: "ASC" }}
-          perPage={20}
-        >
-          <AutocompleteInput
-            label="Cliente"
-            optionText="nombre_completo"
-            validate={required()}
-          />
-        </ReferenceInput>
-      )}
-
-      <OportunidadDelCliente />
-
+      <TipoTareaInput />
       <TextInput
         source="titulo"
         label={esNota ? "Título de la nota" : "Asunto"}
@@ -114,20 +66,33 @@ export const ActividadInputs = ({ clienteFijo }: ActividadInputsProps) => {
         parse={aNulo}
       />
 
+      {/* Las notas no se programan ni tienen responsables */}
       {!esNota && (
-        <div className="grid items-end gap-4 sm:grid-cols-2">
-          <SelectInputOpcional
-            source="asignado_a"
-            label="Responsable"
-            choices={opcionesActivas}
-            emptyText="Sin asignar"
-          />
-          <BooleanInput
-            source="completada"
-            label={ETIQUETA_REALIZADA[tipo ?? "tarea"]}
-          />
-        </div>
+        <SeccionFormulario titulo="Cuándo y quién">
+          <FechaTareaInput tipo={tipo ?? "tarea"} />
+          <ResponsablesInput />
+        </SeccionFormulario>
       )}
+
+      <SeccionFormulario titulo="Relacionada con">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {!clienteFijo && (
+            <ReferenceInput
+              source="cliente_id"
+              reference="clientes"
+              sort={{ field: "nombre_completo", order: "ASC" }}
+              perPage={20}
+            >
+              <AutocompleteInput
+                label="Cliente"
+                optionText="nombre_completo"
+                validate={required()}
+              />
+            </ReferenceInput>
+          )}
+          <OportunidadDelCliente />
+        </div>
+      </SeccionFormulario>
     </>
   );
 };

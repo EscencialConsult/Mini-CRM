@@ -53,6 +53,8 @@ export interface Cliente extends RaRecord<number>, Autoria {
   asignado_a: string | null;
   /** Landing por la que llegó (la primera vez) */
   landing_id: number | null;
+  /** Ids de sus etiquetas, en el orden en que se pusieron */
+  etiquetas: number[];
   // Vista clientes_resumen
   asignado_nombre?: string | null;
   landing_nombre?: string | null;
@@ -60,6 +62,27 @@ export interface Cliente extends RaRecord<number>, Autoria {
   importe_abierto?: number;
   actividades_pendientes?: number;
   ultima_actividad?: string | null;
+}
+
+export type ColorEtiqueta =
+  | "gris"
+  | "rojo"
+  | "naranja"
+  | "ambar"
+  | "verde"
+  | "turquesa"
+  | "azul"
+  | "violeta"
+  | "rosa";
+
+export interface Etiqueta extends RaRecord<number> {
+  nombre: string;
+  color: ColorEtiqueta;
+  creado_en: string;
+  creado_por: string | null;
+  // Vista etiquetas_resumen
+  clientes?: number;
+  creado_por_nombre?: string | null;
 }
 
 export interface Oportunidad extends RaRecord<number>, Autoria {
@@ -73,10 +96,12 @@ export interface Oportunidad extends RaRecord<number>, Autoria {
   fecha_cierre_estimada: string | null;
   fecha_cierre: string | null;
   motivo_perdida: string | null;
-  asignado_a: string | null;
+  /** Responsables, todos iguales (vacío: sin asignar). */
+  asignados: string[];
   // Vista oportunidades_resumen
   cliente_nombre?: string;
   cliente_estado?: EstadoCliente;
+  cliente_tipo?: TipoCliente;
   asignado_nombre?: string | null;
 }
 
@@ -89,12 +114,14 @@ export interface Actividad extends RaRecord<number>, Autoria {
   fecha: string;
   completada: boolean;
   completada_en: string | null;
-  asignado_a: string | null;
+  /** Responsables, todos iguales (vacío: sin asignar). */
+  asignados: string[];
   // Vista actividades_resumen
   cliente_nombre?: string;
   oportunidad_nombre?: string | null;
   asignado_nombre?: string | null;
   vencida?: boolean;
+  cliente_tipo?: TipoCliente;
 }
 
 export interface RegistroAuditoria extends RaRecord<number> {

@@ -1,9 +1,10 @@
 import {
-  Briefcase,
+  Columns3,
   Globe,
   Home,
   ListChecks,
   ScrollText,
+  Tags,
   User,
   UserCog,
   Users,
@@ -76,6 +77,10 @@ export const AppSidebar = () => {
     resource: "usuarios",
     action: "list",
   });
+  const { canAccess: puedeVerEtiquetas } = useCanAccess({
+    resource: "etiquetas",
+    action: "list",
+  });
   const { canAccess: puedeVerAuditoria } = useCanAccess({
     resource: "auditoria",
     action: "list",
@@ -93,13 +98,13 @@ export const AppSidebar = () => {
     },
     {
       to: "/oportunidades",
-      etiqueta: "Oportunidades",
-      Icono: Briefcase,
+      etiqueta: "Tablero",
+      Icono: Columns3,
       activo: estaEn("/oportunidades"),
     },
     {
       to: "/actividades",
-      etiqueta: "Actividades",
+      etiqueta: "Tareas",
       Icono: ListChecks,
       activo: estaEn("/actividades"),
       aviso: conteo.actividades_vencidas,
@@ -119,6 +124,16 @@ export const AppSidebar = () => {
             etiqueta: "Usuarios",
             Icono: UserCog,
             activo: estaEn("/usuarios"),
+          },
+        ]
+      : []),
+    ...(puedeVerEtiquetas
+      ? [
+          {
+            to: "/etiquetas",
+            etiqueta: "Etiquetas",
+            Icono: Tags,
+            activo: estaEn("/etiquetas"),
           },
         ]
       : []),

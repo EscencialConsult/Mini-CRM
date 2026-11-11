@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 
-import { ActividadCheck } from "../actividades/ActividadCheck";
+import { ActividadCompletar } from "../actividades/ActividadCompletar";
 import { TipoActividadChip } from "../actividades/TipoActividad";
 import {
   aIsoFecha,
@@ -74,16 +74,15 @@ const ActividadesPendientes = ({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-medium">Actividades pendientes</h3>
+      <h3 className="text-sm font-medium">Tareas pendientes</h3>
       <Lista
         isPending={isPending}
         error={error}
         hayDatos={Boolean(data?.length)}
-        vacio="No hay actividades pendientes."
+        vacio="No hay tareas pendientes."
       >
         {data?.map((actividad) => (
           <li key={actividad.id} className="flex items-center gap-3 py-2">
-            <ActividadCheck actividad={actividad} />
             <Link
               to={`/actividades/${actividad.id}`}
               className="min-w-0 flex-1 rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
@@ -98,6 +97,7 @@ const ActividadesPendientes = ({
               </span>
             </Link>
             {actividad.vencida && <Pill tono="peligro">Vencida</Pill>}
+            <ActividadCompletar actividad={actividad} />
           </li>
         ))}
       </Lista>

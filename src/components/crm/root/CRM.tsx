@@ -28,6 +28,11 @@ const LandingCreate = lazy(() =>
   })),
 );
 const LandingEditPage = lazy(() => import("../landings/LandingEditPage"));
+const EtiquetasPage = lazy(() =>
+  import("../etiquetas/EtiquetasPage").then((modulo) => ({
+    default: modulo.EtiquetasPage,
+  })),
+);
 const UsuariosPage = lazy(() =>
   import("../usuarios/UsuariosPage").then((modulo) => ({
     default: modulo.UsuariosPage,
@@ -90,6 +95,12 @@ export const CRM = () => (
       list={LandingList}
       create={LandingCreate}
       edit={LandingEditPage}
+    />
+    <Resource
+      name="etiquetas"
+      list={EtiquetasPage}
+      create={EtiquetasPage}
+      edit={EtiquetasPage}
     />
     <Resource name="auditoria" list={AuditoriaPage} show={AuditoriaPage} />
   </Admin>

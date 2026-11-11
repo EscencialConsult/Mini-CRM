@@ -14,26 +14,54 @@ import { TIPOS_ACTIVIDAD } from "../domain/options";
 import type { Actividad } from "../domain/types";
 import { useCrmIdentity } from "../providers/authProvider";
 import { Pill } from "../shared/badges";
-import { CrmList, type ColumnaLista } from "../shared/CrmList";
-import { FilterSelect } from "../shared/ListControls";
+import {
+  CrmList,
+  type ColumnaLista,
+  type PestanaLista,
+} from "../shared/CrmList";
+import type { SeleccionLista } from "../shared/SeleccionLista";
+import { FilterSelect, FiltroSoloEmpresas } from "../shared/ListControls";
 import { useUsuarios } from "../shared/useUsuarios";
-import { ActividadCheck } from "./ActividadCheck";
+import { AccionesSeleccionTareas } from "./seleccion/AccionesSeleccionTareas";
+import { ActividadCompletar } from "./ActividadCompletar";
 import { TipoActividadChip } from "./TipoActividad";
 
-const ESTADOS = [
-  { id: "false", name: "Pendientes" },
-  { id: "true", name: "Realizadas" },
+/**
+ * Pendientes: la que vence (o venció) antes, primero. Completadas: la última
+ * completada, primero. Todas: las pendientes así y después las completadas.
+ * ra-data-postgrest arma `order=<campo>.<sentido>`, así que un campo
+ * compuesto ordena por varias columnas.
+ */
+const PESTANAS: PestanaLista[] = [
+  {
+    id: "pendientes",
+    etiqueta: "Pendientes",
+    filtro: { completada: false },
+    orden: { field: "fecha", order: "ASC" },
+    vacio: "No hay tareas pendientes.",
+  },
+  {
+    id: "completadas",
+    etiqueta: "Completadas",
+    filtro: { completada: true },
+    orden: { field: "completada_en", order: "DESC" },
+    vacio: "Todavía no hay tareas completadas.",
+  },
+  {
+    id: "todas",
+    etiqueta: "Todas",
+    filtro: {},
+    orden: {
+      field: "completada.asc,completada_en.desc.nullslast,fecha",
+      order: "ASC",
+    },
+  },
 ];
 
 const columnas: ColumnaLista<Actividad>[] = [
   {
-    id: "realizada",
-    encabezado: "Hecha",
-    celda: (actividad) => <ActividadCheck actividad={actividad} />,
-  },
-  {
     id: "titulo",
-    encabezado: "Actividad",
+    encabezado: "Tarea",
     orden: "titulo",
     enlace: true,
     celda: (actividad) => (
@@ -75,19 +103,35 @@ const columnas: ColumnaLista<Actividad>[] = [
   },
   {
     id: "responsable",
-    encabezado: "Responsable",
+    encabezado: "Responsables",
     orden: "asignado_nombre",
-    etiquetaTarjeta: "Responsable",
+    etiquetaTarjeta: "Responsables",
     celda: (actividad) => actividad.asignado_nombre ?? "Sin asignar",
+  },
+  {
+    id: "completar",
+    encabezado: "",
+    alinear: "derecha",
+    celda: (actividad) => <ActividadCompletar actividad={actividad} />,
   },
 ];
 
-const NuevaActividad = () => (
+const SELECCION: SeleccionLista<Actividad> = {
+  etiqueta: (cantidad) =>
+    cantidad === 1
+      ? "1 tarea seleccionada"
+      : `${cantidad} tareas seleccionadas`,
+  acciones: (seleccionadas, limpiar) => (
+    <AccionesSeleccionTareas seleccionadas={seleccionadas} limpiar={limpiar} />
+  ),
+};
+
+const NuevaTarea = () => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button>
         <Plus />
-        Nueva actividad
+        Nueva tarea
         <ChevronDown />
       </Button>
     </DropdownMenuTrigger>
@@ -113,19 +157,14 @@ export const ActividadList = () => {
   return (
     <CrmList<Actividad>
       resource="actividades"
-      titulo="Actividades"
-      sort={{ field: "fecha", order: "ASC" }}
-      filterDefaultValues={{ completada: false }}
+      titulo="Tareas"
+      sort={PESTANAS[0].orden}
+      filterDefaultValues={PESTANAS[0].filtro}
+      pestanas={PESTANAS}
+      seleccion={SELECCION}
       buscar="Buscar por asunto o cliente"
       filtros={
         <>
-          <FilterSelect
-            source="completada"
-            etiqueta="Estado"
-            opciones={ESTADOS}
-            todas="Todas"
-            convertir={(id) => id === "true"}
-          />
           <FilterSelect
             source="tipo"
             etiqueta="Tipo"
@@ -136,14 +175,17 @@ export const ActividadList = () => {
             etiqueta="Responsable"
             opciones={opcionesResponsable}
           />
+          <FiltroSoloEmpresas />
         </>
       }
-      acciones={<NuevaActividad />}
+      acciones={<NuevaTarea />}
       columnas={columnas}
       tituloFila={(actividad) => actividad.titulo}
-      accionesTarjeta={(actividad) => <ActividadCheck actividad={actividad} />}
+      accionesTarjeta={(actividad) => (
+        <ActividadCompletar actividad={actividad} />
+      )}
       hrefDe={(actividad) => `/actividades/${actividad.id}`}
-      vacio="No hay actividades. Registrá una llamada, reunión, nota o tarea."
+      vacio="No hay tareas. Registrá una llamada, reunión, nota u otra tarea."
     />
   );
 };

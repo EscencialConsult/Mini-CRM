@@ -25,7 +25,7 @@ export const ClientesPage = () => {
           tituloEditar={(cliente) => cliente.nombre_completo}
           descripcion="Persona o empresa: datos de contacto y estado."
           mensajeGuardado="Cliente creado"
-          defaultValues={{ tipo: "persona", estado: "activo" }}
+          defaultValues={{ tipo: "persona", estado: "activo", etiquetas: [] }}
           onClose={cerrar}
           // Tras el alta se abre su ficha para cargar oportunidades y actividades
           onSaved={(cliente) => abrir(cliente.id, true)}

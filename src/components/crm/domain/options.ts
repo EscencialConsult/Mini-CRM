@@ -1,5 +1,6 @@
 import type {
   AccionAuditoria,
+  ColorEtiqueta,
   EntidadAuditoria,
   EstadoCliente,
   Etapa,
@@ -17,6 +18,19 @@ export interface Opcion<T extends string> {
 export const TIPOS_CLIENTE: Opcion<TipoCliente>[] = [
   { id: "persona", name: "Persona" },
   { id: "empresa", name: "Empresa" },
+];
+
+/** Paleta de las etiquetas, en el orden en que la base las reparte al crearlas. */
+export const COLORES_ETIQUETA: Opcion<ColorEtiqueta>[] = [
+  { id: "azul", name: "Azul" },
+  { id: "verde", name: "Verde" },
+  { id: "naranja", name: "Naranja" },
+  { id: "violeta", name: "Violeta" },
+  { id: "rosa", name: "Rosa" },
+  { id: "turquesa", name: "Turquesa" },
+  { id: "ambar", name: "Ámbar" },
+  { id: "rojo", name: "Rojo" },
+  { id: "gris", name: "Gris" },
 ];
 
 export const ESTADOS_CLIENTE: Opcion<EstadoCliente>[] = [
@@ -46,7 +60,7 @@ export const TIPOS_ACTIVIDAD: Opcion<TipoActividad>[] = [
   { id: "llamada", name: "Llamada" },
   { id: "reunion", name: "Reunión" },
   { id: "nota", name: "Nota" },
-  { id: "tarea", name: "Tarea" },
+  { id: "tarea", name: "Otra" },
 ];
 
 export const ROLES: Opcion<Rol>[] = [
@@ -57,7 +71,7 @@ export const ROLES: Opcion<Rol>[] = [
 export const ENTIDADES_AUDITORIA: Opcion<EntidadAuditoria>[] = [
   { id: "clientes", name: "Clientes" },
   { id: "oportunidades", name: "Oportunidades" },
-  { id: "actividades", name: "Actividades" },
+  { id: "actividades", name: "Tareas" },
   { id: "usuarios", name: "Usuarios" },
   { id: "landings", name: "Landings" },
 ];

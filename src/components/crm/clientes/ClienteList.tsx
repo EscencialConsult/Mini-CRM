@@ -14,6 +14,8 @@ import {
   hoyIso,
 } from "../domain/format";
 import type { Cliente, Landing } from "../domain/types";
+import { EtiquetasCliente } from "../etiquetas/EtiquetaChip";
+import { useEtiquetas } from "../etiquetas/useEtiquetas";
 import { useCrmIdentity } from "../providers/authProvider";
 import { EstadoClienteBadge } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
@@ -49,6 +51,17 @@ const columnas: ColumnaLista<Cliente>[] = [
         )}
       </span>
     ),
+  },
+  {
+    id: "etiquetas",
+    encabezado: "Etiquetas",
+    etiquetaTarjeta: "Etiquetas",
+    celda: (cliente) =>
+      cliente.etiquetas?.length ? (
+        <EtiquetasCliente ids={cliente.etiquetas} maximo={2} />
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
   {
     id: "tipo",
@@ -143,6 +156,11 @@ export const ClienteList = () => {
   const { identity } = useCrmIdentity();
   const { opcionesTodas } = useUsuarios();
   const opcionesLanding = useOpcionesLanding();
+  const { etiquetas } = useEtiquetas();
+  const opcionesEtiqueta = etiquetas.map((etiqueta) => ({
+    id: String(etiqueta.id),
+    name: etiqueta.nombre,
+  }));
 
   const opcionesVendedor = opcionesTodas.map((opcion) =>
     opcion.id === identity?.id
@@ -155,7 +173,7 @@ export const ClienteList = () => {
       resource="clientes"
       titulo="Clientes"
       sort={{ field: "nombre_completo", order: "ASC" }}
-      buscar="Buscar por nombre, documento, email o teléfono"
+      buscar="Buscar por nombre, documento, email, teléfono o etiqueta"
       filtros={
         <>
           <FilterSelect
@@ -173,6 +191,15 @@ export const ClienteList = () => {
             etiqueta="Vendedor"
             opciones={opcionesVendedor}
           />
+          {opcionesEtiqueta.length > 0 && (
+            <FilterSelect
+              source="etiquetas"
+              etiqueta="Etiqueta"
+              opciones={opcionesEtiqueta}
+              todas="Todas"
+              convertir={Number}
+            />
+          )}
           {opcionesLanding.length > 0 && (
             <FilterSelect
               source="landing_id"

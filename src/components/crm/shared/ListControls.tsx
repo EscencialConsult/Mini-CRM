@@ -1,8 +1,9 @@
 import { useListContext } from "ra-core";
 import { Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,9 +11,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const SIN_FILTRO = "__todos__";
+
+interface FilterSwitchProps {
+  /** Clave del filtro (`cliente_tipo`…). */
+  source: string;
+  /** Valor con el que filtra mientras está encendido. */
+  valor: string | number | boolean;
+  etiqueta: string;
+}
+
+/** Interruptor de filtro: encendido filtra por `source = valor`; apagado lo quita. */
+export const FilterSwitch = ({
+  source,
+  valor,
+  etiqueta,
+}: FilterSwitchProps) => {
+  const { filterValues, setFilters } = useListContext();
+  const id = useId();
+
+  const alCambiar = (encendido: boolean) => {
+    const siguiente = { ...filterValues };
+    if (encendido) siguiente[source] = valor;
+    else delete siguiente[source];
+    setFilters(siguiente, {});
+  };
+
+  return (
+    <div className="flex h-9 items-center gap-2">
+      <Switch
+        id={id}
+        checked={filterValues[source] === valor}
+        onCheckedChange={alCambiar}
+      />
+      <Label htmlFor={id} className="font-normal">
+        {etiqueta}
+      </Label>
+    </div>
+  );
+};
 
 interface OpcionFiltro {
   id: string;
@@ -29,6 +69,15 @@ interface FilterSelectProps {
   /** Convierte el id elegido al valor enviado a la API (por defecto, el texto). */
   convertir?: (id: string) => unknown;
 }
+
+/** Solo registros de clientes que son empresas (tareas, oportunidades). */
+export const FiltroSoloEmpresas = () => (
+  <FilterSwitch
+    source="cliente_tipo"
+    valor="empresa"
+    etiqueta="Solo empresas"
+  />
+);
 
 /** Desplegable de filtro del listado. */
 export const FilterSelect = ({

@@ -17,7 +17,7 @@ const crmMessages = {
   resources: {
     clientes: { name: "Cliente |||| Clientes" },
     oportunidades: { name: "Oportunidad |||| Oportunidades" },
-    actividades: { name: "Actividad |||| Actividades" },
+    actividades: { name: "Tarea |||| Tareas" },
     usuarios: { name: "Usuario |||| Usuarios" },
     auditoria: { name: "Registro |||| Auditoría" },
     landings: mensajesLandings,
