@@ -13,6 +13,7 @@ Las decisiones ya están tomadas con el usuario (2026-11-11 y 2026-11-12): no vo
 | 4 | Cerrar oportunidades (ganada/perdida) desde el tablero | ✅ Desplegada |
 | 5 | Sección Ventas (listado + reportes) | ✅ Desplegada |
 | — | Mejorar la vista de Etiquetas | ✅ Hecha (solo frontend) |
+| 6 | Integración con WhatsApp + Pedidos | 🟡 Fase 1 (base de pedidos) hecha y probada, sin desplegar: todo en `WHATSAPP.md` |
 
 **Desplegado el 2026-11-12**: las 3 migraciones aplicadas con `db:push` y la Edge Function `users`
 actualizada (v3). Commit `a58adb4`, ya en `main` y pusheado. El frontend no está publicado: se usa

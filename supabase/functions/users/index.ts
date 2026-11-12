@@ -10,6 +10,7 @@ type Modulo =
   | "panel"
   | "clientes"
   | "oportunidades"
+  | "pedidos"
   | "actividades"
   | "productos"
   | "ventas"
@@ -25,6 +26,7 @@ interface PerfilUsuario {
   rol: Rol;
   activo: boolean;
   modulos: Modulo[];
+  sistema: boolean;
 }
 
 type AccionAuditoria =
@@ -41,6 +43,7 @@ const MODULOS: readonly Modulo[] = [
   "panel",
   "clientes",
   "oportunidades",
+  "pedidos",
   "actividades",
   "productos",
   "ventas",
@@ -49,7 +52,7 @@ const MODULOS: readonly Modulo[] = [
   "auditoria",
 ];
 const MODULOS_POR_DEFECTO: readonly Modulo[] = ["panel", "clientes", "oportunidades", "actividades"];
-const COLUMNAS_PERFIL = "id, nombre, apellido, email, rol, activo, modulos";
+const COLUMNAS_PERFIL = "id, nombre, apellido, email, rol, activo, modulos, sistema";
 const MIN_CLAVE = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BAN_PERMANENTE = "876000h";
@@ -191,6 +194,8 @@ const actualizarUsuario = async (actor: PerfilUsuario, body: Record<string, unkn
     .eq("id", id)
     .maybeSingle<PerfilUsuario>();
   if (!actual) throw new HttpError(404, "Usuario no encontrado", "not_found");
+  // El usuario del sistema (Bot WhatsApp) no se toca: ni datos, ni clave, ni estado
+  if (actual.sistema) throw new HttpError(403, "Es un usuario del sistema: no se modifica", "system_user");
 
   const esUnoMismo = actual.id === actor.id;
   const cambios: Partial<Pick<PerfilUsuario, "nombre" | "apellido" | "rol" | "activo" | "modulos">> = {};
