@@ -15,10 +15,10 @@ Las decisiones ya están tomadas con el usuario (2026-11-11 y 2026-11-12): no vo
 | — | Mejorar la vista de Etiquetas | ✅ Hecha (solo frontend) |
 
 **Desplegado el 2026-11-12**: las 3 migraciones aplicadas con `db:push` y la Edge Function `users`
-actualizada (v3). Commit `a58adb4` en la rama `feat/productos-canales-ventas` (pusheada; falta
-mergear a `main`). El frontend no está publicado: se usa en local con `npm run dev`.
+actualizada (v3). Commit `a58adb4`, ya en `main` y pusheado. El frontend no está publicado: se usa
+en local con `npm run dev`.
 
-**Falta:** probar en la app con un administrador y un vendedor (ver "Qué probar") y mergear la rama.
+**Falta:** probar en la app con un administrador y un vendedor (ver "Qué probar").
 
 ---
 
