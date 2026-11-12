@@ -14,7 +14,16 @@ const columnas: ColumnaLista<Oportunidad>[] = [
     id: "producto",
     encabezado: "Venta",
     orden: "producto_servicio",
-    celda: (venta) => venta.producto_servicio,
+    celda: (venta) => (
+      <span className="block">
+        {venta.producto_servicio}
+        {venta.pedido_id && (
+          <span className="block text-xs font-normal text-muted-foreground">
+            Del pedido #{venta.pedido_id}
+          </span>
+        )}
+      </span>
+    ),
   },
   {
     id: "cliente",
@@ -146,7 +155,8 @@ export const VentasListado = ({
       acciones={<ExportarCsv />}
       columnas={columnas}
       tituloFila={(venta) => venta.producto_servicio}
-      // Sin Tablero no se edita: la fila no abre nada
+      // Sin Tablero no se edita: la fila no abre nada. Una venta de pedido se
+      // abre de solo lectura, con el enlace al pedido
       hrefDe={
         tiene("oportunidades")
           ? (venta) => `/oportunidades/${venta.id}`

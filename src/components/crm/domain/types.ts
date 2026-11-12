@@ -11,7 +11,12 @@ export type MotivoPerdida =
   "precio" | "competencia" | "sin_respuesta" | "otra_solucion" | "otro";
 export type TipoActividad = "llamada" | "reunion" | "nota" | "tarea";
 export type EntidadAuditoria =
-  "clientes" | "oportunidades" | "actividades" | "usuarios" | "landings";
+  | "clientes"
+  | "oportunidades"
+  | "actividades"
+  | "usuarios"
+  | "landings"
+  | "pedidos";
 export type AccionAuditoria =
   | "crear"
   | "editar"
@@ -42,6 +47,8 @@ export interface Usuario extends RaRecord<string> {
   /** Para el administrador no se usa: tiene todos. */
   modulos: Modulo[];
   creado_en: string;
+  /** Usuario del sistema (el "Bot WhatsApp"): no inicia sesión ni se asigna a nadie. */
+  sistema?: boolean;
 }
 
 export interface Cliente extends RaRecord<number>, Autoria {
@@ -103,6 +110,7 @@ export interface Producto extends RaRecord<number>, Autoria {
   activo: boolean;
   // Vista productos_resumen
   oportunidades?: number;
+  pedidos?: number;
 }
 
 export interface Canal extends RaRecord<number> {
@@ -147,6 +155,8 @@ export interface Oportunidad extends RaRecord<number>, Autoria {
   motivo_perdida: string | null;
   /** Responsables, todos iguales (vacío: sin asignar). */
   asignados: string[];
+  /** Pedido del que viene esta venta: se cambia desde Pedidos, no se edita acá. */
+  pedido_id?: number | null;
   // Vista oportunidades_resumen
   cliente_nombre?: string;
   cliente_estado?: EstadoCliente;
@@ -172,6 +182,54 @@ export interface Actividad extends RaRecord<number>, Autoria {
   asignado_nombre?: string | null;
   vencida?: boolean;
   cliente_tipo?: TipoCliente;
+}
+
+export type EstadoPedido =
+  | "nuevo"
+  | "en_preparacion"
+  | "en_camino"
+  | "listo_para_retirar"
+  | "entregado"
+  | "cancelado";
+export type OrigenPedido = "whatsapp" | "manual" | "landing";
+export type EntregaPedido = "envio" | "retiro";
+
+/** Línea de un pedido: la base completa `nombre` y `subtotal`. */
+export type LineaPedido = LineaProducto;
+
+export interface Pedido extends RaRecord<number>, Autoria {
+  cliente_id: number;
+  origen: OrigenPedido;
+  estado: EstadoPedido;
+  /** `null`: «a coordinar» (la landing no define la entrega) */
+  tipo_entrega: EntregaPedido | null;
+  direccion: string | null;
+  /** Sin fecha: "para ahora". */
+  entrega_en: string | null;
+  productos: LineaPedido[];
+  total: number;
+  /** Armado por la base ("A", "A y B", "A y 2 más"). */
+  titulo: string;
+  nota: string | null;
+  telefono_whatsapp: string | null;
+  prueba: boolean;
+  entregado_en: string | null;
+  // Vista pedidos_resumen
+  cliente_nombre?: string;
+  cliente_telefono?: string | null;
+  /** La venta enlazada (solo la ve quien tiene Tablero o Ventas). */
+  venta_id?: number | null;
+}
+
+export interface PedidoHistorial extends RaRecord<number> {
+  pedido_id: number;
+  fecha: string;
+  estado_anterior: EstadoPedido | null;
+  estado: EstadoPedido;
+  usuario_id: string | null;
+  /** Sin usuario (el bot, la landing): de dónde vino el cambio. */
+  origen: string | null;
+  motivo: string | null;
 }
 
 export interface RegistroAuditoria extends RaRecord<number> {
@@ -231,7 +289,7 @@ export interface LandingEstadisticas {
   recientes: {
     cliente_id: number | null;
     cliente_nombre: string | null;
-    tipo: "formulario" | "whatsapp";
+    tipo: "formulario" | "whatsapp" | "pedido";
     cliente_nuevo: boolean;
     utm_source: string | null;
     utm_campaign: string | null;

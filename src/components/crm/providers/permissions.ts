@@ -16,6 +16,7 @@ const SIN_BORRAR: readonly Accion[] = ["list", "show", "create", "edit"];
 const MODULO_DE_RECURSO: Record<string, Modulo> = {
   clientes: "clientes",
   oportunidades: "oportunidades",
+  pedidos: "pedidos",
   actividades: "actividades",
   productos: "productos",
   ventas: "ventas",
@@ -35,6 +36,7 @@ const ACCIONES: Record<
   administrador: {
     clientes: TODAS,
     oportunidades: TODAS,
+    pedidos: TODAS,
     actividades: TODAS,
     usuarios: TODAS,
     auditoria: ["list", "show"],
@@ -49,6 +51,8 @@ const ACCIONES: Record<
     // Borrado definitivo solo del administrador; el vendedor inactiva
     clientes: SIN_BORRAR,
     oportunidades: SIN_BORRAR,
+    // Borrar un pedido es del administrador (la base lo exige)
+    pedidos: SIN_BORRAR,
     // Puede eliminar sus propias actividades (la base lo verifica por autor)
     actividades: TODAS,
     // Crea, edita y publica; eliminar (borrado definitivo) es del administrador

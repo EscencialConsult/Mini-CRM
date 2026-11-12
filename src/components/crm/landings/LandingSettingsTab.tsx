@@ -38,6 +38,7 @@ import {
   SwitchField,
   TextField,
 } from "./landingControls";
+import { LandingCarritoSettings } from "./LandingCarritoSettings";
 import { LandingFollowUpTab } from "./LandingFollowUpTab";
 import { LANDINGS_HOST, landingUrl } from "./landingUrls";
 
@@ -53,17 +54,69 @@ const CAMPAIGN_SOURCES = [
 
 /** A card that groups related settings under one heading. */
 const SettingsGroup = ({
+  id,
   title,
+  help,
   children,
 }: {
+  id: string;
   title: string;
+  help?: string;
   children: ReactNode;
 }) => (
-  <section className="space-y-6 rounded-xl border bg-card p-4 sm:p-5">
-    <h2 className="text-base font-semibold">{title}</h2>
+  <section
+    id={id}
+    className="scroll-mt-24 space-y-6 rounded-xl border bg-card p-4 sm:p-5"
+  >
+    <div className="space-y-0.5">
+      <h2 className="text-base font-semibold">{title}</h2>
+      {help && <p className="text-sm text-muted-foreground">{help}</p>}
+    </div>
     {children}
   </section>
 );
+
+/** The groups of the tab, in order, so the index can take you to each one. */
+const SETTINGS_GROUPS = [
+  { anchor: SETTINGS_ANCHORS.groupPublication, key: "publication" },
+  { anchor: SETTINGS_ANCHORS.groupForm, key: "form" },
+  { anchor: SETTINGS_ANCHORS.groupCart, key: "cart" },
+  { anchor: SETTINGS_ANCHORS.groupFollowUp, key: "follow_up" },
+  { anchor: SETTINGS_ANCHORS.groupCampaigns, key: "campaigns" },
+] as const;
+
+/** A short list of the groups: the tab is long, and this saves scrolling. */
+const SettingsIndex = () => {
+  const translate = useTranslate();
+  const t = (key: string) => translate(`${EDITOR}.settings.${key}`);
+  return (
+    <nav
+      aria-label={t("index")}
+      className="sticky top-0 z-10 rounded-xl border bg-card/95 p-2 backdrop-blur"
+    >
+      <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+        {t("index")}
+      </p>
+      <ul className="flex flex-wrap gap-1">
+        {SETTINGS_GROUPS.map((group) => (
+          <li key={group.key}>
+            <button
+              type="button"
+              className="rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent active:bg-accent/80"
+              onClick={() =>
+                document
+                  .getElementById(group.anchor)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              {t(`groups.${group.key}`)}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+};
 
 const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const translate = useTranslate();
@@ -232,7 +285,7 @@ const FormSettings = ({
 
   return (
     <>
-      <div id={SETTINGS_ANCHORS.afterSend} className="scroll-mt-4">
+      <div id={SETTINGS_ANCHORS.afterSend} className="scroll-mt-24">
         <EditorSection title={t("after_send")} help={t("after_send_help")}>
           <PickField
             label={t("after_send_mode")}
@@ -292,7 +345,7 @@ const FormSettings = ({
         </EditorSection>
       </div>
 
-      <div id={SETTINGS_ANCHORS.whatsapp} className="scroll-mt-4">
+      <div id={SETTINGS_ANCHORS.whatsapp} className="scroll-mt-24">
         <EditorSection title={t("whatsapp")} help={t("whatsapp_help")}>
           <SwitchField
             label={t("whatsapp_enabled")}
@@ -357,7 +410,7 @@ const FormSettings = ({
         </EditorSection>
       </div>
 
-      <div id={SETTINGS_ANCHORS.consent} className="scroll-mt-4">
+      <div id={SETTINGS_ANCHORS.consent} className="scroll-mt-24">
         <EditorSection title={t("consent")} help={t("consent_help")}>
           <SwitchField
             label={t("consent_enabled")}
@@ -421,11 +474,16 @@ export const LandingSettingsTab = ({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-8">
-      <SettingsGroup title={t("groups.publication")}>
-        <div id={SETTINGS_ANCHORS.checklist} className="scroll-mt-4">
+      <SettingsIndex />
+      <SettingsGroup
+        id={SETTINGS_ANCHORS.groupPublication}
+        title={t("groups.publication")}
+        help={t("groups_help.publication")}
+      >
+        <div id={SETTINGS_ANCHORS.checklist} className="scroll-mt-24">
           <Checklist content={content} problems={problems} onGoTo={onGoTo} />
         </div>
-        <div id={SETTINGS_ANCHORS.general} className="scroll-mt-4">
+        <div id={SETTINGS_ANCHORS.general} className="scroll-mt-24">
           <EditorSection title={t("general")}>
             <TextField
               label={t("name")}
@@ -465,7 +523,7 @@ export const LandingSettingsTab = ({
             )}
           </EditorSection>
         </div>
-        <div id={SETTINGS_ANCHORS.sharing} className="scroll-mt-4">
+        <div id={SETTINGS_ANCHORS.sharing} className="scroll-mt-24">
           <EditorSection title={t("sharing")} help={t("sharing_help")}>
             <TextField
               label={t("seo_title")}
@@ -499,7 +557,7 @@ export const LandingSettingsTab = ({
             />
           </EditorSection>
         </div>
-        <div id={SETTINGS_ANCHORS.privacy} className="scroll-mt-4">
+        <div id={SETTINGS_ANCHORS.privacy} className="scroll-mt-24">
           <EditorSection title={t("privacy")} help={t("privacy_help")}>
             <TextField
               label={t("privacy_title")}
@@ -525,17 +583,41 @@ export const LandingSettingsTab = ({
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title={t("groups.form")}>
+      <SettingsGroup
+        id={SETTINGS_ANCHORS.groupForm}
+        title={t("groups.form")}
+        help={t("groups_help.form")}
+      >
         <FormSettings content={content} patch={patch} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("groups.follow_up")}>
+      <SettingsGroup
+        id={SETTINGS_ANCHORS.groupCart}
+        title={t("groups.cart")}
+        help={t("groups_help.cart")}
+      >
+        <LandingCarritoSettings
+          content={content}
+          patch={patch}
+          landing={landing}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup
+        id={SETTINGS_ANCHORS.groupFollowUp}
+        title={t("groups.follow_up")}
+        help={t("groups_help.follow_up")}
+      >
         <LandingFollowUpTab content={content} patch={patch} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("groups.campaigns")}>
+      <SettingsGroup
+        id={SETTINGS_ANCHORS.groupCampaigns}
+        title={t("groups.campaigns")}
+        help={t("groups_help.campaigns")}
+      >
         <CampaignLinks slug={slug} />
-        <div id={SETTINGS_ANCHORS.tracking} className="scroll-mt-4">
+        <div id={SETTINGS_ANCHORS.tracking} className="scroll-mt-24">
           <EditorSection title={t("tracking")} help={t("tracking_help")}>
             <TextField
               label={t("facebook_pixel")}

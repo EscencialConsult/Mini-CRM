@@ -1,9 +1,12 @@
+import { useGetOne } from "ra-core";
+
 import { useCrmIdentity, useEsAdministrador } from "../providers/authProvider";
 import type { Oportunidad } from "../domain/types";
 import { DeleteRecordButton } from "../shared/DeleteRecordButton";
-import { RecordFormDialog } from "../shared/RecordFormDialog";
+import { DialogoCargando, RecordFormDialog } from "../shared/RecordFormDialog";
 import { LINEA_VACIA } from "./lineasProductos";
 import { OportunidadInputs } from "./OportunidadInputs";
+import { VentaDePedidoDialog } from "./VentaDePedidoDialog";
 
 interface OportunidadFormDialogProps {
   /** Con id edita; sin id crea. */
@@ -14,8 +17,34 @@ interface OportunidadFormDialogProps {
   onSaved?: (oportunidad: Oportunidad) => void;
 }
 
-/** Modal de alta/edición de oportunidad: sirve para la ruta propia y para la ficha del cliente. */
-export const OportunidadFormDialog = ({
+/**
+ * Modal de alta/edición de oportunidad: sirve para la ruta propia y para la
+ * ficha del cliente. Una venta que viene de un pedido se abre de solo lectura.
+ */
+export const OportunidadFormDialog = (props: OportunidadFormDialogProps) =>
+  props.id === undefined ? (
+    <Formulario {...props} />
+  ) : (
+    <ConGuardaDePedido {...props} id={props.id} />
+  );
+
+const ConGuardaDePedido = (
+  props: OportunidadFormDialogProps & { id: string },
+) => {
+  const { data: oportunidad, isPending } = useGetOne<Oportunidad>(
+    "oportunidades",
+    { id: Number(props.id) },
+  );
+  if (isPending) return <DialogoCargando onClose={props.onClose} />;
+  if (oportunidad?.pedido_id) {
+    return (
+      <VentaDePedidoDialog oportunidad={oportunidad} onClose={props.onClose} />
+    );
+  }
+  return <Formulario {...props} />;
+};
+
+const Formulario = ({
   id,
   clienteId,
   onClose,

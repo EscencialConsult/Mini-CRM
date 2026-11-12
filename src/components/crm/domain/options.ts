@@ -2,9 +2,12 @@ import type {
   AccionAuditoria,
   ColorEtiqueta,
   EntidadAuditoria,
+  EntregaPedido,
   EstadoCliente,
+  EstadoPedido,
   Etapa,
   MotivoPerdida,
+  OrigenPedido,
   Resultado,
   Rol,
   TipoActividad,
@@ -83,7 +86,96 @@ export const ENTIDADES_AUDITORIA: Opcion<EntidadAuditoria>[] = [
   { id: "actividades", name: "Tareas" },
   { id: "usuarios", name: "Usuarios" },
   { id: "landings", name: "Landings" },
+  { id: "pedidos", name: "Pedidos" },
 ];
+
+export const ESTADOS_PEDIDO: Opcion<EstadoPedido>[] = [
+  { id: "nuevo", name: "Nuevo" },
+  { id: "en_preparacion", name: "En preparación" },
+  { id: "en_camino", name: "En camino" },
+  { id: "listo_para_retirar", name: "Listo para retirar" },
+  { id: "entregado", name: "Entregado" },
+  { id: "cancelado", name: "Cancelado" },
+];
+
+export const ENTREGAS_PEDIDO: Opcion<EntregaPedido>[] = [
+  { id: "envio", name: "Envío" },
+  { id: "retiro", name: "Retiro" },
+];
+
+/** Pedido sin tipo de entrega (`tipo_entrega` nulo): se resuelve con el cliente. */
+export const ENTREGA_A_COORDINAR = "coordinar";
+export const NOMBRE_A_COORDINAR = "A coordinar";
+
+/** Para el filtro del listado y el alta: los tipos y «A coordinar». */
+export const ENTREGAS_PEDIDO_CON_COORDINAR: Opcion<string>[] = [
+  ...ENTREGAS_PEDIDO,
+  { id: ENTREGA_A_COORDINAR, name: NOMBRE_A_COORDINAR },
+];
+
+/** Nombre de la entrega de un pedido; nulo es «A coordinar». */
+export const nombreEntrega = (entrega: EntregaPedido | null): string =>
+  entrega === null ? NOMBRE_A_COORDINAR : nombreDe(ENTREGAS_PEDIDO, entrega);
+
+export const ORIGENES_PEDIDO: Opcion<OrigenPedido>[] = [
+  { id: "whatsapp", name: "WhatsApp" },
+  { id: "landing", name: "Landing" },
+  { id: "manual", name: "Cargado por el equipo" },
+];
+
+/**
+ * El camino normal de un pedido: "En camino" es del envío y "Listo para
+ * retirar" del retiro (la base lo exige). A coordinar no tiene un paso fijo
+ * en el medio: se elige cuál (ver `estadosAlcanzables`).
+ */
+export const caminoPedido = (entrega: EntregaPedido | null): EstadoPedido[] =>
+  entrega === null
+    ? ["nuevo", "en_preparacion", "entregado"]
+    : [
+        "nuevo",
+        "en_preparacion",
+        entrega === "envio" ? "en_camino" : "listo_para_retirar",
+        "entregado",
+      ];
+
+/** El paso que sigue en el camino; sin paso si ya se entregó o se canceló. */
+export const proximoEstado = (
+  estado: EstadoPedido,
+  entrega: EntregaPedido | null,
+): EstadoPedido | null => {
+  // A coordinar: desde cualquiera de los dos pasos de salida se entrega
+  if (
+    entrega === null &&
+    (estado === "en_camino" || estado === "listo_para_retirar")
+  ) {
+    return "entregado";
+  }
+  const camino = caminoPedido(entrega);
+  const indice = camino.indexOf(estado);
+  return indice >= 0 ? (camino[indice + 1] ?? null) : null;
+};
+
+/**
+ * Todos los estados a los que se puede pasar desde el actual (el camino y
+ * Cancelado). A coordinar admite En camino y Listo para retirar.
+ */
+export const estadosAlcanzables = (
+  estado: EstadoPedido,
+  entrega: EntregaPedido | null,
+): EstadoPedido[] => {
+  const camino: EstadoPedido[] =
+    entrega === null
+      ? [
+          "nuevo",
+          "en_preparacion",
+          "en_camino",
+          "listo_para_retirar",
+          "entregado",
+        ]
+      : caminoPedido(entrega);
+  const todos: EstadoPedido[] = [...camino, "cancelado"];
+  return todos.filter((otro) => otro !== estado);
+};
 
 export const ACCIONES_AUDITORIA: Opcion<AccionAuditoria>[] = [
   { id: "crear", name: "Creó" },

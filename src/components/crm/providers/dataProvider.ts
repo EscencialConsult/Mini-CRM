@@ -19,10 +19,12 @@ import {
 
 import type {
   CambiosUsuario,
+  EstadoPedido,
   Landing,
   LandingEstadisticas,
   LandingIndicadores,
   NuevoUsuario,
+  Pedido,
   Usuario,
 } from "../domain/types";
 import {
@@ -120,6 +122,27 @@ const RESOURCES: Record<string, ResourceConfig> = {
     busqueda: "sin_tildes",
     variosResponsables: true,
     lineasProductos: true,
+  },
+  // Pedidos: el estado, el origen y la clave los maneja la base
+  // (pedido_cambiar_estado); el título y el total salen de las líneas
+  pedidos: {
+    table: "pedidos",
+    view: "pedidos_resumen",
+    writable: [
+      "cliente_id",
+      "tipo_entrega",
+      "direccion",
+      "entrega_en",
+      "productos",
+      "nota",
+    ],
+    busqueda: "sin_tildes",
+    lineasProductos: true,
+  },
+  // Cada cambio de estado de un pedido; solo lectura
+  pedido_historial: {
+    table: "pedido_historial",
+    writable: [],
   },
   // Módulo Ventas: las mismas oportunidades, solo lectura (la base muestra las
   // cerradas a quien tiene el módulo aunque no tenga Tablero)
@@ -308,6 +331,18 @@ const aFiltroProducto = (
     : resto;
 };
 
+/** `tipo_entrega: "coordinar"` → `tipo_entrega@is: null` (pedidos sin tipo de entrega). */
+const aFiltroEntrega = (
+  resource: string,
+  filter: Record<string, unknown>,
+): Record<string, unknown> => {
+  if (resource !== "pedidos" || filter.tipo_entrega !== "coordinar") {
+    return filter;
+  }
+  const { tipo_entrega: _coordinar, ...resto } = filter;
+  return { ...resto, "tipo_entrega@is": null };
+};
+
 /**
  * Traduce el filtro `q` a `busqueda@ilike` (cada palabra debe aparecer) y el de
  * responsable a la lista de responsables, donde corresponde.
@@ -316,9 +351,12 @@ const aFiltroApi = (
   resource: string,
   filter: Record<string, unknown> | undefined,
 ): Record<string, unknown> => {
-  const { q, ...resto } = aFiltroProducto(
+  const { q, ...resto } = aFiltroEntrega(
     resource,
-    aFiltroListas(resource, aFiltroResponsables(resource, filter)),
+    aFiltroProducto(
+      resource,
+      aFiltroListas(resource, aFiltroResponsables(resource, filter)),
+    ),
   );
   const modo = RESOURCES[resource]?.busqueda;
   if (typeof q !== "string" || !modo) return resto;
@@ -380,6 +418,12 @@ export interface CrmDataProvider extends DataProvider {
     dias: number,
   ): Promise<LandingEstadisticas>;
   indicadoresLandings(dias: number): Promise<LandingIndicadores[]>;
+  /** Cambia el estado de un pedido (`pedido_cambiar_estado`); el motivo es obligatorio al revertir una entrega. */
+  cambiarEstadoPedido(
+    id: Identifier,
+    estado: EstadoPedido,
+    motivo?: string,
+  ): Promise<Pedido>;
   /** Sube una imagen pública y devuelve su URL. */
   subirImagenLanding(archivo: File): Promise<string>;
 }
@@ -526,6 +570,12 @@ export const getDataProvider = (): CrmDataProvider => {
       }),
     indicadoresLandings: (dias) =>
       rpc<LandingIndicadores[]>("landings_indicadores", { p_dias: dias }),
+    cambiarEstadoPedido: (id, estado, motivo) =>
+      rpc<Pedido>("pedido_cambiar_estado", {
+        p_id: id,
+        p_estado: estado,
+        p_motivo: motivo?.trim() || null,
+      }),
     async subirImagenLanding(archivo) {
       const extension =
         archivo.name

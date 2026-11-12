@@ -12,12 +12,12 @@ const CINCO_MINUTOS = 5 * 60 * 1000;
  * pero una oportunidad vieja puede tenerlos.
  */
 export const useProductos = () => {
-  const { data, isPending } = useGetList<Producto>(
+  const { data, isPending, error } = useGetList<Producto>(
     "productos",
     {
       pagination: { page: 1, perPage: 1000 },
       sort: { field: "nombre", order: "ASC" },
-      meta: { columns: ["id", "nombre", "precio", "activo"] },
+      meta: { columns: ["id", "nombre", "descripcion", "precio", "activo"] },
     },
     { staleTime: CINCO_MINUTOS },
   );
@@ -26,11 +26,12 @@ export const useProductos = () => {
     const productos = data ?? [];
     return {
       isPending,
+      hayError: !!error,
       productos,
       activos: productos.filter((producto) => producto.activo),
       porId: new Map(productos.map((producto) => [producto.id, producto])),
     };
-  }, [data, isPending]);
+  }, [data, isPending, error]);
 };
 
 /** Vuelve a pedir el catálogo (al crear, editar, desactivar o borrar). */

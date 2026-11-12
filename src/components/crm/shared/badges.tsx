@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import {
   ESTADOS_CLIENTE,
+  ESTADOS_PEDIDO,
   ETAPAS,
   RESULTADOS,
   TIPOS_ACTIVIDAD,
@@ -12,6 +13,7 @@ import {
 } from "../domain/options";
 import type {
   EstadoCliente,
+  EstadoPedido,
   Etapa,
   Resultado,
   Rol,
@@ -58,6 +60,19 @@ export const ResultadoBadge = ({ resultado }: { resultado: Resultado }) => (
   <Pill tono={TONO_RESULTADO[resultado]}>
     {nombreDe(RESULTADOS, resultado)}
   </Pill>
+);
+
+const TONO_PEDIDO: Record<EstadoPedido, Tono> = {
+  nuevo: "info",
+  en_preparacion: "aviso",
+  en_camino: "aviso",
+  listo_para_retirar: "aviso",
+  entregado: "exito",
+  cancelado: "peligro",
+};
+
+export const EstadoPedidoBadge = ({ estado }: { estado: EstadoPedido }) => (
+  <Pill tono={TONO_PEDIDO[estado]}>{nombreDe(ESTADOS_PEDIDO, estado)}</Pill>
 );
 
 export const EtapaBadge = ({ etapa }: { etapa: Etapa }) => (

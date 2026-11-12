@@ -38,6 +38,11 @@ const ProductosPage = lazy(() =>
     default: modulo.ProductosPage,
   })),
 );
+const PedidosPage = lazy(() =>
+  import("../pedidos/PedidosPage").then((modulo) => ({
+    default: modulo.PedidosPage,
+  })),
+);
 const VentasPage = lazy(() =>
   import("../ventas/VentasPage").then((modulo) => ({
     default: modulo.VentasPage,
@@ -76,6 +81,7 @@ const conAcceso = (resource: string, Pagina: ComponentType) => {
 
 const Clientes = conAcceso("clientes", ClientesPage);
 const Oportunidades = conAcceso("oportunidades", OportunidadesPage);
+const Pedidos = conAcceso("pedidos", PedidosPage);
 const Actividades = conAcceso("actividades", ActividadesPage);
 const Usuarios = conAcceso("usuarios", UsuariosPage);
 const Landings = conAcceso("landings", LandingList);
@@ -126,6 +132,7 @@ export const CRM = () => (
       create={Oportunidades}
       edit={Oportunidades}
     />
+    <Resource name="pedidos" list={Pedidos} create={Pedidos} edit={Pedidos} />
     <Resource
       name="actividades"
       list={Actividades}

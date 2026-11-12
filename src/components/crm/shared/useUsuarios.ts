@@ -13,7 +13,12 @@ export interface OpcionUsuario {
 const nombreCompleto = (usuario: Usuario): string =>
   `${usuario.nombre} ${usuario.apellido}`.trim();
 
-/** Usuarios del CRM para desplegables de asignación y filtros (se piden una vez y se reutilizan). */
+/**
+ * Usuarios del CRM para desplegables de asignación y filtros (se piden una vez y se reutilizan).
+ * El usuario del sistema ("Bot WhatsApp") no se ofrece para asignar, pero queda en
+ * `usuarios` y en `opcionesTodas`: así su nombre se ve como responsable de las ventas
+ * de pedidos y se puede filtrar por él.
+ */
 export const useUsuarios = () => {
   const { data, isPending } = useGetList<Usuario>(
     "usuarios",
@@ -29,9 +34,9 @@ export const useUsuarios = () => {
     return {
       isPending,
       usuarios,
-      /** Solo activos: para asignar. */
+      /** Solo activos y de personas (no del sistema): para asignar. */
       opcionesActivas: usuarios
-        .filter((usuario) => usuario.activo)
+        .filter((usuario) => usuario.activo && !usuario.sistema)
         .map((usuario): OpcionUsuario => ({
           id: usuario.id,
           name: nombreCompleto(usuario),

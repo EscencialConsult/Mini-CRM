@@ -1,4 +1,9 @@
 import {
+  CARRITO_MAX_CANTIDAD,
+  CARRITO_MAX_LINEAS,
+  CARRITO_TITULO_BOTON,
+  carritoTelefono,
+  formatCarritoMoneda,
   isFacebookPixelId,
   isGoogleTagId,
   isHttpUrl,
@@ -32,6 +37,25 @@ export interface RenderOptions {
    * and what is empty or hidden is still drawn so it can be filled in place.
    */
   editable?: boolean;
+  /**
+   * Active products of the catalog, for the order block of the editor's
+   * preview (no RPC is called there). The published page loads its own.
+   */
+  productos?: ProductosVistaPrevia;
+}
+
+/** The catalog as the preview knows it: still loading, failed, or the active products. */
+export type ProductosVistaPrevia =
+  | { estado: "cargando" }
+  | { estado: "error" }
+  | { estado: "listo"; lista: ProductoPagina[] };
+
+/** What the order block shows of a product. */
+export interface ProductoPagina {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  precio: number;
 }
 
 const esc = (value: string) =>
@@ -87,12 +111,32 @@ const textBody = (text: string, editable: boolean, path: string) =>
     ? `<div${editBlock(true, path)}>${paragraphs(text)}</div>`
     : paragraphs(text);
 
-/** White or near-black, whichever reads better on this background. */
-const textOn = (hex: string) => {
-  const channel = (start: number) => parseInt(hex.slice(start, start + 2), 16);
-  const luminance =
-    (0.299 * channel(1) + 0.587 * channel(3) + 0.114 * channel(5)) / 255;
-  return luminance > 0.6 ? "#0f172a" : "#ffffff";
+/** WCAG relative luminance of a #rrggbb color. */
+const relativeLuminance = (hex: string) => {
+  const linear = (start: number) => {
+    const channel = parseInt(hex.slice(start, start + 2), 16) / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(1) + 0.7152 * linear(3) + 0.0722 * linear(5);
+};
+
+const contrastRatio = (a: number, b: number) =>
+  (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+/** Luminance of the near-black used for text (#0f172a). */
+const DARK_TEXT_LUMINANCE = relativeLuminance("#0f172a");
+
+/**
+ * White or near-black, whichever has the higher real contrast (WCAG) on every
+ * given background: a gradient needs one text color that reads on both ends.
+ */
+const textOn = (...hexes: string[]) => {
+  const luminances = hexes.map(relativeLuminance);
+  const worst = (text: number) =>
+    Math.min(...luminances.map((luminance) => contrastRatio(luminance, text)));
+  return worst(1) >= worst(DARK_TEXT_LUMINANCE) ? "#ffffff" : "#0f172a";
 };
 
 const CHECK_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
@@ -111,7 +155,7 @@ const heroBackground = ({ design }: LandingContent) => {
   if (type === "gradient") {
     return {
       css: `linear-gradient(135deg,${color},${color2})`,
-      text: textOn(color),
+      text: textOn(color, color2),
     };
   }
   return { css: color, text: textOn(color) };
@@ -147,6 +191,8 @@ p:last-child{margin-bottom:0}
 .hero-inner{display:grid;gap:40px;padding-top:56px;padding-bottom:64px}
 .eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.86;margin:0 0 14px}
 .hero h1{font-size:clamp(2.1rem,4.4vw,3.35rem);font-weight:800}
+.hero.compact .hero-inner{gap:0;padding-top:28px;padding-bottom:32px}
+.hero.compact h1{font-size:clamp(1.7rem,3.2vw,2.5rem)}
 .subtitle{font-size:clamp(1.05rem,1.6vw,1.22rem);margin:18px 0 0;opacity:.93;white-space:pre-line;max-width:60ch}
 .highlights{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:10px}
 .highlights li{display:flex;gap:10px;align-items:flex-start;font-weight:600}
@@ -175,6 +221,7 @@ legend{padding:0}
 .choice{display:flex;align-items:flex-start;gap:8px;margin-top:6px;font-size:.95rem}
 .choice input{margin-top:5px;accent-color:var(--primary)}
 .consent{font-size:.82rem;color:var(--muted);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .send{width:100%}
 .send:disabled{opacity:.6;cursor:wait}
@@ -251,6 +298,114 @@ footer a{color:#fff}
 .wa-send{width:100%;background:#25d366;color:#07361f}
 .wa-close{float:right;border:0;background:none;font-size:1.4rem;line-height:1;color:var(--muted);cursor:pointer;padding:0 0 0 12px}
 .wa-note{display:block;font-size:.78rem;color:var(--muted);margin-top:10px}
+.step{margin:0 0 24px;padding:0;border:0;min-width:0}
+.step-title{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:0;font-size:1.1rem;font-weight:800;line-height:1.2}
+.step-n{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:.85rem;font-weight:800}
+.step:focus-visible{outline:3px solid var(--primary);outline-offset:4px}
+.shop{display:grid;gap:20px;align-items:start}
+.shop-main{min-width:0}
+.cart-products{list-style:none;margin:0;padding:0;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr))}
+.shop-card{display:flex;flex-direction:column;min-width:0;background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.shop-card:hover{box-shadow:0 8px 24px rgba(15,23,42,.1)}
+.shop-card:focus-within{border-color:var(--primary)}
+.shop-card.in-cart{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+.shop-img{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:var(--tint-strong);color:var(--primary);font-size:2.2rem;font-weight:800;line-height:1}
+.shop-body{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0;padding:14px 14px 8px}
+.shop-name{margin:0;font-size:1rem;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.shop-desc{margin:0;color:var(--muted);font-size:.9rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.shop-price{margin-top:auto;padding-top:4px;font-size:1.35rem;font-weight:800;font-variant-numeric:tabular-nums}
+.shop-action{padding:6px 14px 14px}
+.shop-add{width:100%;height:44px;min-height:44px;padding-block:0}
+.shop-add:disabled{opacity:.5;cursor:not-allowed}
+.qty{display:inline-flex;align-items:center;gap:6px;height:44px}
+.shop-action .qty{display:flex;justify-content:space-between;width:100%}
+.shop-action .qty output{flex:1}
+.qty button{width:44px;height:44px;border:1px solid #cbd5e1;border-radius:max(6px,calc(var(--radius) - 4px));background:#fff;color:var(--ink);font:inherit;font-size:1.3rem;line-height:1;cursor:pointer}
+.qty button:hover:not(:disabled){background:var(--tint-strong)}
+.qty button:disabled{opacity:.45;cursor:not-allowed}
+.qty button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.qty output{min-width:2.4ch;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.skel .shop-img{font-size:0}
+.skel .shop-img,.skel .bar{background:linear-gradient(90deg,var(--tint-strong),var(--tint),var(--tint-strong));background-size:200% 100%;animation:shimmer 1.3s linear infinite}
+.skel .shop-body{min-height:96px}
+.bar{height:14px;border-radius:6px}
+.bar.w60{width:60%}
+.bar.w40{width:40%}
+@keyframes shimmer{to{background-position:-200% 0}}
+.cart-status{color:var(--muted);margin:0 0 10px}
+.cart-status .btn{min-height:44px;margin-left:6px}
+.mini-cart{background:var(--tint);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.mini-cart h4{margin:0 0 12px;font-size:1.05rem;font-weight:800}
+.mini-cart h4:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.mini-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 0;text-align:center;color:var(--muted)}
+.mini-empty svg{width:40px;height:40px;opacity:.7}
+.mini-empty p{margin:0}
+.cart-table{width:100%;border-collapse:collapse;margin:0 0 12px}
+.cart-table th{padding:8px 10px;border-bottom:2px solid var(--line);color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:.04em;text-align:left;text-transform:uppercase}
+.cart-table td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle;font-variant-numeric:tabular-nums}
+.cart-table .cell-num{text-align:right}
+.cart-table .cell-name{font-weight:600;overflow-wrap:break-word}
+.cart-table .cell-sub{font-weight:700;white-space:nowrap}
+.cart-table .cell-remove{width:52px;padding:2px}
+.line-remove{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--ink);font-size:1.5rem;line-height:1;cursor:pointer}
+.line-remove:hover{background:var(--tint-strong)}
+.line-remove:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+@media (max-width:600px){
+.cart-table,.cart-table tbody,.cart-table tr,.cart-table td{display:block}
+.cart-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.cart-table tr{position:relative;padding:10px 0;border-bottom:1px solid var(--line)}
+.cart-table td{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border:0;text-align:right}
+.cart-table td::before{content:attr(data-label);color:var(--muted);font-weight:500;text-align:left}
+.cart-table td.cell-name{display:block;padding-right:48px;font-size:1rem;text-align:left}
+.cart-table td.cell-name::before,.cart-table td.cell-remove::before{display:none}
+.cart-table td.cell-remove{position:absolute;top:4px;right:-8px;width:auto;padding:0}
+}
+.cart-totals{max-width:320px;margin-left:auto}
+.cart-totals .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;font-variant-numeric:tabular-nums}
+.cart-totals .total{margin-top:6px;padding-top:10px;border-top:1px solid var(--line);font-size:1.25rem;font-weight:800}
+.cart-delivery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.choice-card{position:relative;display:block;min-width:0;cursor:pointer}
+.choice-card input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.cc-body{position:relative;display:block;height:100%;min-height:48px;padding:12px 12px 12px 44px;border:1.5px solid var(--line);border-radius:var(--radius);background:#fff;transition:border-color .15s,background-color .15s}
+.cc-body::before{content:"";position:absolute;left:14px;top:15px;width:18px;height:18px;border:2px solid #64748b;border-radius:50%;background:#fff}
+.cc-body b{display:block;font-size:.98rem;line-height:1.3}
+.cc-body span{display:block;margin-top:2px;color:var(--muted);font-size:.86rem;line-height:1.35}
+.choice-card:hover .cc-body{border-color:var(--primary)}
+.choice-card input:checked+.cc-body{border-color:var(--primary);background:var(--tint)}
+.choice-card input:checked+.cc-body::before{border-color:var(--primary);background:radial-gradient(circle,var(--primary) 0 4px,#fff 5px)}
+.choice-card input:focus-visible+.cc-body{outline:3px solid var(--primary);outline-offset:2px}
+@media (max-width:480px){
+.cart-delivery{grid-template-columns:1fr}
+.cc-body{padding:12px 10px 12px 38px}
+.cc-body::before{left:10px}
+}
+.cart-delivery-box .field{margin-top:10px}
+.cart-note{margin:0;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--radius);background:var(--tint);font-weight:600}
+.shop [hidden],.mini-cart [hidden],.cart-delivery-box[hidden],.cart-delivery-box [hidden]{display:none!important}
+#lead-form [aria-invalid=true]{border-color:#b91c1c}
+.lead-order h2{margin-bottom:8px}
+.lead-order .btn{margin-top:14px;width:100%}
+.order-lines{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
+.order-lines li{display:flex;justify-content:space-between;gap:12px;font-size:.95rem}
+.order-lines li span:first-child{min-width:0;overflow-wrap:anywhere}
+.order-lines li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+.lead-order:focus-visible,#cart-products:focus-visible,#cart-status:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.form-below.wide{max-width:1100px}
+.cart-bar{position:fixed;left:12px;right:12px;bottom:84px;z-index:14;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:6px 6px 6px 16px;background:var(--ink);color:#fff;border-radius:999px;box-shadow:0 10px 28px rgba(15,23,42,.3)}
+.cart-bar[hidden]{display:none}
+.cart-bar-text{display:flex;flex-direction:column;min-width:0;line-height:1.2;font-variant-numeric:tabular-nums}
+.cart-bar-count{font-size:.8rem;opacity:.85}
+.cart-bar-total{font-size:1.05rem;font-weight:800;white-space:nowrap}
+.cart-bar a{flex:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;color:var(--ink);font-weight:700;text-decoration:none}
+.cart-bar a:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+body.has-cart-bar{padding-bottom:140px}
+body.has-cart-bar .wa{bottom:144px}
+@media (prefers-reduced-motion:reduce){.sticky-cta,.shop-card,.cc-body{transition:none}.skel .shop-img,.skel .bar{animation:none}}
+@media (min-width:900px){
+.cart-bar{right:auto;left:20px;bottom:20px;width:min(460px,calc(100vw - 120px))}
+body.has-cart-bar{padding-bottom:0}
+body.has-cart-bar .wa{bottom:20px}
+}
 @media (min-width:900px){
 .hero-inner.side{grid-template-columns:minmax(0,1.1fr) minmax(0,480px);align-items:center;gap:56px;padding-top:72px;padding-bottom:88px}
 .split.with-image{grid-template-columns:1.2fr 1fr}
@@ -335,7 +490,7 @@ const renderField = (field: LandingField, half: boolean, index?: number) => {
     const choices = options
       .map((option) => `<option value="${esc(option)}">${esc(option)}</option>`)
       .join("");
-    return `${open}<select name="${name}"${required}><option value="">Elige una opción</option>${choices}</select></${tag}>`;
+    return `${open}<select name="${name}"${required}><option value="">Elegí una opción</option>${choices}</select></${tag}>`;
   }
   if (field.type === "textarea") {
     return `${open}<textarea name="${name}"${required}></textarea></${tag}>`;
@@ -359,8 +514,10 @@ const renderForm = (
   content: LandingContent,
   editable: boolean,
   privacyHref: string,
+  options: RenderOptions,
 ) => {
   const { form, thanks } = content;
+  const shop = content.carrito.activo;
   const half = halfWidthFields(form.fields);
   const consent = editable
     ? `<span${editLine(true, "form.consent.text")}>${esc(form.consent.text)}</span>`
@@ -368,13 +525,17 @@ const renderForm = (
   // A button cannot be typed into: on the canvas its text sits in a span
   const submit = esc(form.submitLabel || "Enviar");
   return `<div class="card" id="formulario">
-<div id="lead-thanks" hidden><h2>${esc(thanks.title)}</h2>${paragraphs(thanks.message)}</div>
+<div id="lead-thanks" hidden><h2>${esc(thanks.title)}</h2>${paragraphs(thanks.message)}${shop && !editable ? `<div class="lead-order" id="lead-order" tabindex="-1" hidden></div>` : ""}</div>
 <form id="lead-form" novalidate>
 ${form.title || editable ? `<h2${editLine(editable, "form.title")}>${esc(form.title)}</h2>` : ""}
 ${form.intro || editable ? `<p class="intro"${editLine(editable, "form.intro")}>${esc(form.intro)}</p>` : ""}
+${renderPedido(content, options)}
+${shop ? `<div class="step"><h3 class="step-title"><span class="step-n" aria-hidden="true">2</span>Tus datos</h3>` : ""}
 <div class="fields">
 ${form.fields.map((field, index) => renderField(field, half.has(field.id), editable ? index : undefined)).join("\n")}
 </div>
+${shop ? "</div>" : ""}
+${renderEntrega(content, editable)}
 <div class="trap" aria-hidden="true"><label>No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
 ${
   form.consent.enabled && (form.consent.text.trim() || editable)
@@ -391,8 +552,15 @@ ${
 </div>`;
 };
 
-const ctaLabel = ({ hero, form }: LandingContent) =>
-  hero.ctaLabel.trim() || form.submitLabel.trim() || "Quiero información";
+const ctaLabel = ({ hero, form, carrito }: LandingContent) =>
+  hero.ctaLabel.trim() ||
+  (carrito.activo
+    ? "Ver catálogo"
+    : form.submitLabel.trim() || "Quiero información");
+
+/** With a catalog the main buttons lead to it; otherwise, to the inquiry form. */
+const ctaHref = ({ carrito }: LandingContent) =>
+  carrito.activo ? "#pedido" : "#formulario";
 
 const hasContent = ({
   title,
@@ -503,7 +671,7 @@ const renderSectionBody = (
         ? `<div class="wrap">${head}<div class="plans">${items
             .map(({ item, itemPath, itemMark }) => {
               const lines = planLines(item.text, editable, `${itemPath}.text`);
-              return `<div class="item plan"${itemMark}><h3${line(`${itemPath}.title`)}>${esc(item.title)}</h3>${shows(item.subtitle) ? `<div class="price"${line(`${itemPath}.subtitle`)}>${esc(item.subtitle)}</div>` : ""}${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<a class="btn" href="#formulario"${button}>${label}</a></div>`;
+              return `<div class="item plan"${itemMark}><h3${line(`${itemPath}.title`)}>${esc(item.title)}</h3>${shows(item.subtitle) ? `<div class="price"${line(`${itemPath}.subtitle`)}>${esc(item.subtitle)}</div>` : ""}${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<a class="btn" href="${ctaHref(content)}"${button}>${label}</a></div>`;
             })
             .join("")}</div></div>`
         : "";
@@ -539,7 +707,7 @@ const renderSectionBody = (
         : "";
     case "cta":
       return shows(section.title)
-        ? `<div class="wrap final"><h2${line(`${path}.title`)}>${esc(section.title)}</h2>${textBody(section.text, editable, `${path}.text`)}<a class="btn btn-on-dark" href="#formulario"${button}>${label}</a></div>`
+        ? `<div class="wrap final"><h2${line(`${path}.title`)}>${esc(section.title)}</h2>${textBody(section.text, editable, `${path}.text`)}<a class="btn btn-on-dark" href="${ctaHref(content)}"${button}>${label}</a></div>`
         : "";
   }
 };
@@ -582,16 +750,17 @@ const renderHeader = (content: LandingContent, editable: boolean) => {
     : editable
       ? `${emptySlot("image", "hero.logoUrl", " logo")}<span${editLine(true, "footer.company")}>${esc(company)}</span>`
       : esc(company);
-  return `<header class="top"><div class="wrap top-row"><a class="brand" href="#s-hero">${brand}</a><a class="btn btn-sm" href="#formulario"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a></div></header>`;
+  return `<header class="top"><div class="wrap top-row"><a class="brand" href="#s-hero">${brand}</a><a class="btn btn-sm" href="${ctaHref(content)}"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a></div></header>`;
 };
 
 const renderHero = (
   content: LandingContent,
   editable: boolean,
   privacyHref: string,
+  options: RenderOptions,
 ) => {
-  const { hero, design } = content;
-  const isSide = design.formPosition === "side";
+  const { hero } = content;
+  const isSide = formBesideHero(content);
   const heroImage = safeUrl(hero.imageUrl);
   // The canvas keeps empty points too, and offers one when there are none
   const entries = editable
@@ -608,17 +777,31 @@ const renderHero = (
     : editable
       ? emptySlot("image", "hero.imageUrl", " hero-image")
       : "";
-  return `<section class="hero" id="s-hero">
+  // Just a title (a catalog's cover): no empty block above or below it, and
+  // the catalog right underneath needs no button of its own. The canvas keeps
+  // the full cover, with its empty spots to fill in.
+  const compact =
+    !editable &&
+    !isSide &&
+    !hero.eyebrow.trim() &&
+    !hero.subtitle.trim() &&
+    !heroImage &&
+    !hero.highlights.some((item) => item.trim());
+  const cta =
+    compact && content.carrito.activo
+      ? ""
+      : `<a class="btn hero-btn" href="${ctaHref(content)}"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a>`;
+  return `<section class="hero${compact ? " compact" : ""}" id="s-hero">
 <div class="wrap hero-inner${isSide ? " side" : " centered"}">
 <div class="hero-copy">
 ${hero.eyebrow.trim() || editable ? `<p class="eyebrow"${editLine(editable, "hero.eyebrow")}>${esc(hero.eyebrow)}</p>` : ""}
 <h1${editLine(editable, "hero.title")}>${esc(hero.title)}</h1>
 ${hero.subtitle.trim() || editable ? `<p class="subtitle"${editBlock(editable, "hero.subtitle")}>${esc(hero.subtitle)}</p>` : ""}
 ${highlights.length ? `<ul class="highlights">${highlights.join("")}</ul>` : ""}
-${isSide ? "" : `<a class="btn hero-btn" href="#formulario"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a>`}
+${isSide ? "" : cta}
 ${image}
 </div>
-${isSide ? renderForm(content, editable, privacyHref) : ""}
+${isSide ? renderForm(content, editable, privacyHref, options) : ""}
 </div>
 </section>`;
 };
@@ -645,6 +828,114 @@ const renderFooter = (
   return `<footer id="s-footer"><div class="wrap footer-row">${items.join("")}</div></footer>`;
 };
 
+/** The products the order block offers: the allowed ones, or every active one. */
+const offeredProducts = (
+  { carrito }: LandingContent,
+  productos: ProductoPagina[],
+) =>
+  carrito.productoIds.length
+    ? productos.filter((producto) => carrito.productoIds.includes(producto.id))
+    : productos;
+
+const BAG_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>`;
+
+/** Products have no picture: the first letter on a tinted square stands in for it. */
+const initialOf = (name: string) =>
+  esc((Array.from(name.trim())[0] ?? "•").toUpperCase());
+
+/**
+ * A product of the editor's canvas: the same card as the page, with the button
+ * on. The canvas runs no script (its frame is sandboxed), so a touch on it only
+ * says where the cart can be tried; the editor listens for `data-cart-preview`.
+ */
+const previewProduct = (producto: ProductoPagina) => {
+  const description = producto.descripcion?.trim();
+  return `<li class="shop-card"><div class="shop-img" aria-hidden="true"><span>${initialOf(producto.nombre)}</span></div><div class="shop-body"><h4 class="shop-name">${esc(producto.nombre)}</h4>${description ? `<p class="shop-desc">${esc(description)}</p>` : ""}<div class="shop-price">${esc(formatCarritoMoneda(producto.precio))}</div></div><div class="shop-action"><button type="button" class="btn shop-add" data-cart-preview aria-label="Agregar ${esc(producto.nombre)} al carrito">Agregar al carrito</button></div></li>`;
+};
+
+/** «Tu carrito», the cart table of a shop: empty at first, filled by the script. */
+const MINI_CART = `<aside class="mini-cart" aria-labelledby="mini-cart-title">
+<h4 id="mini-cart-title" tabindex="-1">Tu carrito</h4>
+<div class="mini-empty" id="cart-empty">${BAG_ICON}<p>Tu carrito está vacío</p></div>
+<table class="cart-table" id="cart-table" role="table" hidden>
+<caption class="sr-only">Productos de tu carrito</caption>
+<thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader"><span class="sr-only">Quitar</span></th><th scope="col" role="columnheader">Producto</th><th scope="col" role="columnheader" class="cell-num">Precio</th><th scope="col" role="columnheader" class="cell-num">Cantidad</th><th scope="col" role="columnheader" class="cell-num">Subtotal</th></tr></thead>
+<tbody id="cart-lines" role="rowgroup"></tbody>
+</table>
+<div class="cart-totals" id="cart-summary" hidden><div class="row"><span>Subtotal</span><b id="cart-subtotal">$ 0,00</b></div><div class="row total"><span>Total</span><b id="cart-total">$ 0,00</b></div></div>
+</aside>`;
+
+/**
+ * «1. Catálogo», inside the one form: a grid of product cards and the
+ * cart table below it, full width. The published page loads the products in the browser
+ * (landing_productos); the preview tab gets them in `options.productos` and
+ * runs the same script without a network; the canvas shows them as static
+ * cards.
+ */
+const renderPedido = (content: LandingContent, options: RenderOptions) => {
+  if (!content.carrito.activo) return "";
+  const editable = !!options.editable;
+  const preview = !!options.preview || editable;
+  const state = options.productos;
+  const dynamic = !editable && (!preview || state?.estado === "listo");
+  let main: string;
+  if (dynamic) {
+    main = `<p class="cart-status sr-only" id="cart-status" role="status" tabindex="-1">Cargando productos…</p>
+<ul class="cart-products" id="cart-products" tabindex="-1"></ul>`;
+  } else if (!state) {
+    main = `<p class="cart-status">Los productos se muestran en la página publicada.</p>`;
+  } else if (state.estado === "cargando") {
+    main = `<p class="cart-status" role="status">Cargando productos…</p>`;
+  } else if (state.estado === "error") {
+    main = `<p class="cart-status" role="alert">No pudimos cargar los productos. Probá de nuevo en un momento.</p>`;
+  } else {
+    const listed = offeredProducts(content, state.lista);
+    main = listed.length
+      ? `<ul class="cart-products">${listed.map(previewProduct).join("")}</ul>`
+      : `<p class="cart-status">Todavía no hay productos disponibles. Cargalos en Productos.</p>`;
+  }
+  return `<div class="step" id="pedido" tabindex="-1" role="group" aria-labelledby="pedido-titulo">
+<h3 class="step-title" id="pedido-titulo"><span class="step-n" aria-hidden="true">1</span>Catálogo</h3>
+<div class="shop"><div class="shop-main">${main}</div>${MINI_CART}</div>
+${dynamic ? `<span class="sr-only" id="cart-announce" role="status"></span>` : ""}
+</div>`;
+};
+
+/**
+ * «3. Entrega»: the business decides (carrito.entrega), not the template. It is
+ * shown once something is chosen.
+ *  - "elegir": cards for shipping or pickup, and the address for shipping
+ *  - "envio": no cards, only the address
+ *  - "retiro": one line, «Retiro en el local»
+ *  - "ninguna": no step and no field: the order stays «a coordinar»
+ */
+const renderEntrega = (content: LandingContent, editable: boolean) => {
+  const { activo, entrega } = content.carrito;
+  if (!activo || entrega === "ninguna") return "";
+  const address = (label: string) =>
+    `<label class="field" id="cart-address-field"><span class="field-label">${label} <span class="req">*</span></span><input type="text" name="pedido_direccion" autocomplete="street-address" maxlength="300"></label>`;
+  const open = `<fieldset class="step cart-delivery-box" id="cart-delivery"${editable ? "" : " hidden"}><legend class="step-title"><span class="step-n" aria-hidden="true">3</span>Entrega</legend>`;
+  if (entrega === "retiro") {
+    return `${open}<p class="cart-note">Retiro en el local</p></fieldset>`;
+  }
+  if (entrega === "envio") {
+    return `${open}${address("Dirección de envío")}</fieldset>`;
+  }
+  return `${open}
+<div class="cart-delivery">
+<label class="choice-card"><input type="radio" name="pedido_entrega" value="envio" checked><span class="cc-body"><b>Envío</b><span>A tu domicilio</span></span></label>
+<label class="choice-card"><input type="radio" name="pedido_entrega" value="retiro"><span class="cc-body"><b>Retiro</b><span>Pasás a buscarlo</span></span></label>
+</div>
+${address("Dirección de entrega")}
+</fieldset>`;
+};
+
+/** On phones, a bar that takes the visitor back to the order while they keep reading. */
+const renderBarraPedido = (content: LandingContent, scripted: boolean) =>
+  content.carrito.activo && scripted
+    ? `<div class="cart-bar" id="cart-bar" role="region" aria-label="Resumen del pedido" hidden><span class="cart-bar-text" id="cart-bar-text"></span><a href="#pedido" id="cart-bar-link">Ver pedido</a></div>`
+    : "";
+
 /** Without JavaScript the button is a plain link: the chat always opens. */
 const renderWhatsapp = (
   content: LandingContent,
@@ -668,7 +959,7 @@ ${whatsapp.popupText.trim() ? `<p>${esc(whatsapp.popupText)}</p>` : ""}
 <div class="trap" aria-hidden="true"><label>No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
 <p class="error" id="wa-error" role="alert" hidden></p>
 <button class="btn wa-send" type="submit">Abrir WhatsApp</button>
-<small class="wa-note">Al continuar aceptas nuestra <a href="${esc(privacyHref)}" target="_blank" rel="noopener">política de privacidad</a>.</small>
+<small class="wa-note">Al continuar aceptás nuestra <a href="${esc(privacyHref)}" target="_blank" rel="noopener">política de privacidad</a>.</small>
 </form>
 </dialog>`;
 };
@@ -699,6 +990,8 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
     submitUrl: options.submitUrl,
     apiKey: options.apiKey ?? "",
     slug: options.slug,
+    // The preview tab: no request, no visit, nothing saved in the browser
+    preview: !!options.preview,
     fields: form.fields.map(({ id, type, label, required }) => ({
       id,
       type,
@@ -708,6 +1001,33 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
     nameFieldId: nameField?.id ?? "",
     thanks: { mode: thanks.mode, url: safeUrl(thanks.url) },
     whatsapp: { phone: phoneDigits(whatsapp.phone), message: whatsapp.message },
+    carrito: {
+      activo: content.carrito.activo,
+      // Same host and key as the form: only the function changes
+      productsUrl: options.submitUrl.replace(/[^/]*$/, "landing_productos"),
+      // Only the preview tab brings them; the published page asks for them
+      productos:
+        options.preview && options.productos?.estado === "listo"
+          ? offeredProducts(content, options.productos.lista).map(
+              ({ id, nombre, descripcion, precio }) => ({
+                id,
+                nombre,
+                descripcion: descripcion ?? "",
+                precio,
+              }),
+            )
+          : null,
+      // Decided by the business: "elegir", "envio", "retiro" or "ninguna"
+      entrega: content.carrito.entrega,
+      // One button: the form's own text, and the order's once something is chosen
+      sendLabel: form.submitLabel || "Enviar",
+      buttonLabel: content.carrito.tituloBoton || CARRITO_TITULO_BOTON,
+      // Its own number, or the one of the WhatsApp button when left empty
+      phone: carritoTelefono(content),
+      template: content.carrito.plantillaMensaje,
+      maxQuantity: CARRITO_MAX_CANTIDAD,
+      maxLines: CARRITO_MAX_LINEAS,
+    },
   };
   // "<" cannot appear inside the script: a text cannot close the tag
   const json = JSON.stringify(config).replace(/</g, "\\u003c");
@@ -717,8 +1037,23 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
   var config = JSON.parse(document.getElementById("landing-config").textContent);
   var noop = function () {};
   var memory = {
-    get: function (key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } },
-    set: function (key, value) { try { sessionStorage.setItem(key, value); } catch (e) {} }
+    // The preview tab is a blob that inherits the CRM's origin: it must not read or write its storage
+    get: function (key) { if (config.preview) return null; try { return sessionStorage.getItem(key); } catch (e) { return null; } },
+    set: function (key, value) { if (config.preview) return; try { sessionStorage.setItem(key, value); } catch (e) {} }
+  };
+  // One key per order attempt: if the send is cut off and the visitor tries again,
+  // the database recognizes the order it already saved instead of creating another.
+  // It is kept until a reply arrives, and cleared then so the next order is new.
+  var orderKeyStore = "landing-order:" + config.slug;
+  var orderKey = function () {
+    var key = memory.get(orderKeyStore);
+    if (!key) {
+      key = window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : "k" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+      memory.set(orderKeyStore, key);
+    }
+    return key;
   };
   var post = function (payload) {
     payload.slug = config.slug;
@@ -731,7 +1066,7 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
   };
 
   // One visit per browser session; a failure here never bothers the visitor
-  if (!memory.get("landing-visit")) {
+  if (!config.preview && !memory.get("landing-visit")) {
     memory.set("landing-visit", "1");
     post({ event: "visit" }).catch(noop);
   }
@@ -762,9 +1097,15 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
   var form = document.getElementById("lead-form");
   var errorBox = document.getElementById("lead-error");
   var button = form.querySelector("button[type=submit]");
-  var showError = function (text) {
+  var busy = false;
+  var showError = function (text, field) {
     errorBox.textContent = text;
     errorBox.hidden = false;
+    if (field) {
+      field.setAttribute("aria-invalid", "true");
+      field.setAttribute("aria-describedby", "lead-error");
+      field.focus();
+    }
   };
   var valueOf = function (field) {
     if (field.type === "checkbox") {
@@ -779,22 +1120,391 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
     var input = form.elements[field.id];
     return input ? input.value.trim() : "";
   };
-  var finish = function (answers) {
+  // An order is never redirected away: its summary and the WhatsApp button are the thanks
+  var finish = function (answers, data) {
     var thanks = config.thanks;
-    if (thanks.mode === "url" && thanks.url) {
+    var ordered = !!(data && typeof data.pedido_id === "number" && cartApi);
+    if (!ordered && thanks.mode === "url" && thanks.url) {
       window.location.href = thanks.url;
       return;
     }
-    if (thanks.mode === "whatsapp" && config.whatsapp.phone) {
+    if (!ordered && thanks.mode === "whatsapp" && config.whatsapp.phone) {
       window.location.href = whatsappUrl(firstWord(answers[config.nameFieldId]));
       return;
     }
     form.hidden = true;
     document.getElementById("lead-thanks").hidden = false;
+    if (ordered) cartApi.showOrder(data, firstWord(answers[config.nameFieldId]));
   };
+  // The cart lives inside the form: the products come from landing_productos
+  // (or, in the preview tab, from the page itself) and, on send, the lines and
+  // the delivery go with the answers to landing_recibir. Prices on screen are
+  // only a preview; the database computes the real ones.
+  var cart = config.carrito;
+  var cartApi = null;
+  var cartList = document.getElementById("cart-products");
+  if (cart.activo && cartList) {
+    var money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
+    var cartStatus = document.getElementById("cart-status");
+    var cartLines = document.getElementById("cart-lines");
+    var cartTable = document.getElementById("cart-table");
+    var cartEmpty = document.getElementById("cart-empty");
+    var cartSummary = document.getElementById("cart-summary");
+    var cartSubtotal = document.getElementById("cart-subtotal");
+    var cartTotal = document.getElementById("cart-total");
+    var cartTitle = document.getElementById("mini-cart-title");
+    // Decided by the business; the page never lets the visitor change it
+    var mode = cart.entrega;
+    // Absent when the business has no delivery step ("ninguna") or no address to ask ("retiro")
+    var deliveryBox = document.getElementById("cart-delivery");
+    var addressField = document.getElementById("cart-address-field");
+    var cartBar = document.getElementById("cart-bar");
+    var cartBarText = document.getElementById("cart-bar-text");
+    var cartAnnounce = document.getElementById("cart-announce");
+    var products = [];
+    var quantities = {};
+    var announcedCount = 0;
+    var summaryVisible = false;
+    // True once the products answered: until then a send would drop the order in silence
+    var loaded = false;
+    var storeKey = "landing-cart:" + config.slug;
+    // The preview tab (a blob with the CRM's origin) must not touch any storage
+    var store = {
+      get: function () { if (config.preview) return null; try { return localStorage.getItem(storeKey); } catch (e) { return null; } },
+      set: function (value) { if (config.preview) return; try { localStorage.setItem(storeKey, value); } catch (e) {} },
+      clear: function () { if (config.preview) return; try { localStorage.removeItem(storeKey); } catch (e) {} }
+    };
+    var saved = {};
+    try {
+      var parsed = JSON.parse(store.get() || "{}");
+      if (parsed && typeof parsed === "object") saved = parsed;
+    } catch (e) {}
+
+    var element = function (tag, className, text) {
+      var node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    var initial = function (name) {
+      var first = Array.from(String(name).trim())[0];
+      return first ? first.toUpperCase() : "\\u2022";
+    };
+    var chosen = function () {
+      return products.filter(function (product) { return quantities[product.id] > 0; });
+    };
+    var cartMessage = function (data, name) {
+      var lines = data.lineas
+        .map(function (line) {
+          return "\\u2022 " + line.cantidad + " \\u00d7 " + line.nombre + " \\u2014 " + money.format(line.subtotal);
+        })
+        .join("\\n");
+      var values = { pedido: String(data.pedido_id), nombre: name, lineas: lines, total: money.format(data.total) };
+      return cart.template.replace(/\\{\\s*(pedido|nombre|lineas|total)\\s*\\}/g, function (all, key) {
+        return values[key];
+      });
+    };
+    var syncDelivery = function () {
+      // Only shipping needs the address; with "retiro" or "ninguna" there is no field at all
+      if (!addressField) return;
+      var pickup = mode === "elegir" && form.elements.pedido_entrega.value === "retiro";
+      addressField.hidden = pickup;
+      form.elements.pedido_direccion.required = chosen().length > 0 && !pickup;
+    };
+    var updateBar = function () {
+      cartBar.hidden = !(chosen().length > 0 && !summaryVisible && !busy);
+      document.body.classList.toggle("has-cart-bar", !cartBar.hidden);
+    };
+    var removeLine = function (id) {
+      delete quantities[id];
+      refresh();
+      // The line is gone with its button: the focus goes to the cart's title
+      cartTitle.focus();
+    };
+
+    var refresh = function () {
+      var picked = chosen();
+      var count = picked.length;
+      var total = 0;
+      cartLines.textContent = "";
+      picked.forEach(function (product) {
+        var amount = quantities[product.id] * product.precio;
+        total += amount;
+        var row = element("tr");
+        // Explicit roles: below 600px the table is laid out as blocks, which drops its semantics
+        row.setAttribute("role", "row");
+        var cell = function (className, label, text) {
+          var node = element("td", className, text);
+          node.setAttribute("role", "cell");
+          if (label) node.setAttribute("data-label", label);
+          row.appendChild(node);
+          return node;
+        };
+        var removeCell = cell("cell-remove");
+        var remove = element("button", "line-remove", "\\u00d7");
+        remove.type = "button";
+        remove.setAttribute("aria-label", "Quitar " + product.nombre + " del carrito");
+        remove.addEventListener("click", function () { removeLine(product.id); });
+        removeCell.appendChild(remove);
+        cell("cell-name", "Producto", product.nombre);
+        cell("cell-num", "Precio", money.format(product.precio));
+        cell("cell-num", "Cantidad", String(quantities[product.id]));
+        cell("cell-num cell-sub", "Subtotal", money.format(amount));
+        cartLines.appendChild(row);
+      });
+      cartTable.hidden = count === 0;
+      cartEmpty.hidden = count > 0;
+      cartSummary.hidden = count === 0;
+      if (deliveryBox) deliveryBox.hidden = count === 0;
+      syncDelivery();
+      cartSubtotal.textContent = money.format(total);
+      cartTotal.textContent = money.format(total);
+      var countText = count + (count === 1 ? " producto" : " productos");
+      // Two lines so the total never gets cut: how many above, how much below
+      cartBarText.textContent = "";
+      cartBarText.appendChild(element("span", "cart-bar-count", countText));
+      cartBarText.appendChild(element("span", "cart-bar-total", money.format(total)));
+      // Announced only when the order goes from empty to filled, not on every click on the steppers
+      if (count > 0 && announcedCount === 0) cartAnnounce.textContent = "Tu pedido: " + countText + " \\u00b7 " + money.format(total);
+      if (count === 0) cartAnnounce.textContent = "";
+      announcedCount = count;
+      if (!busy) button.textContent = count > 0 ? cart.buttonLabel : cart.sendLabel;
+      updateBar();
+      // Until the products load, nothing is chosen yet: the saved order must survive
+      if (loaded) {
+        if (count) { store.set(JSON.stringify(quantities)); } else { store.clear(); }
+      }
+      [].slice.call(cartList.querySelectorAll("li[data-id]")).forEach(function (card) {
+        var id = Number(card.getAttribute("data-id"));
+        var amount = quantities[id] || 0;
+        card.classList.toggle("in-cart", amount > 0);
+        card.querySelector("[data-add]").hidden = amount > 0;
+        card.querySelector("[data-add]").disabled = count >= cart.maxLines;
+        card.querySelector(".qty").hidden = amount === 0;
+        card.querySelector("output").textContent = String(amount);
+        card.querySelector("[data-more]").disabled = amount >= cart.maxQuantity;
+      });
+    };
+    var change = function (id, delta) {
+      var before = quantities[id] || 0;
+      var next = Math.max(0, Math.min(cart.maxQuantity, before + delta));
+      if (next === 0) { delete quantities[id]; } else { quantities[id] = next; }
+      refresh();
+      // The control that was pressed may have been replaced: the focus follows it
+      var card = cartList.querySelector('li[data-id="' + id + '"]');
+      var which = next === 0 ? "[data-add]" : before === 0 ? "[data-more]" : null;
+      var target = card && which ? card.querySelector(which) : null;
+      if (target && !target.disabled) target.focus();
+    };
+    var stepper = function (label, symbol, flag, id, delta) {
+      var control = element("button", "", symbol);
+      control.type = "button";
+      control.setAttribute(flag, "");
+      control.setAttribute("aria-label", label);
+      control.addEventListener("click", function () { change(id, delta); });
+      return control;
+    };
+    var showSkeleton = function () {
+      cartList.textContent = "";
+      for (var index = 0; index < 3; index++) {
+        var card = element("li", "shop-card skel");
+        card.setAttribute("aria-hidden", "true");
+        card.appendChild(element("div", "shop-img"));
+        var body = element("div", "shop-body");
+        body.appendChild(element("div", "bar w60"));
+        body.appendChild(element("div", "bar"));
+        body.appendChild(element("div", "bar w40"));
+        card.appendChild(body);
+        cartList.appendChild(card);
+      }
+    };
+    var showProducts = function () {
+      cartList.textContent = "";
+      products.forEach(function (product) {
+        var card = element("li", "shop-card");
+        card.setAttribute("data-id", String(product.id));
+        var picture = element("div", "shop-img");
+        picture.setAttribute("aria-hidden", "true");
+        picture.appendChild(element("span", "", initial(product.nombre)));
+        card.appendChild(picture);
+        var info = element("div", "shop-body");
+        info.appendChild(element("h4", "shop-name", product.nombre));
+        if (product.descripcion) info.appendChild(element("p", "shop-desc", product.descripcion));
+        info.appendChild(element("div", "shop-price", money.format(product.precio)));
+        card.appendChild(info);
+        var action = element("div", "shop-action");
+        var add = element("button", "btn shop-add", "Agregar al carrito");
+        add.type = "button";
+        add.setAttribute("data-add", "");
+        add.setAttribute("aria-label", "Agregar " + product.nombre + " al carrito");
+        add.addEventListener("click", function () { change(product.id, 1); });
+        action.appendChild(add);
+        var qty = element("div", "qty");
+        qty.hidden = true;
+        qty.appendChild(stepper("Quitar una unidad de " + product.nombre, "\\u2212", "data-less", product.id, -1));
+        var shown = element("output", "", "0");
+        shown.setAttribute("aria-label", "Cantidad de " + product.nombre);
+        qty.appendChild(shown);
+        qty.appendChild(stepper("Agregar una unidad de " + product.nombre, "+", "data-more", product.id, 1));
+        action.appendChild(qty);
+        card.appendChild(action);
+        cartList.appendChild(card);
+      });
+      refresh();
+    };
+    var showStatus = function (text, visible, failed) {
+      cartStatus.className = visible ? "cart-status" : "cart-status sr-only";
+      // The node keeps role="status"; a failure raises its urgency instead of changing the role
+      cartStatus.setAttribute("aria-live", failed ? "assertive" : "polite");
+      cartStatus.textContent = text;
+      cartStatus.hidden = false;
+    };
+
+    var applyProducts = function (list) {
+      products = (Array.isArray(list) ? list : []).filter(function (product) {
+        return product && typeof product.id === "number" && typeof product.nombre === "string" && isFinite(Number(product.precio));
+      }).map(function (product) {
+        return { id: product.id, nombre: product.nombre, descripcion: product.descripcion || "", precio: Number(product.precio) };
+      });
+      loaded = true;
+      if (!products.length) {
+        showStatus("Todav\\u00eda no hay productos disponibles.", true);
+        cartList.textContent = "";
+        store.clear();
+        return;
+      }
+      // Restore the saved order: gone products drop out, amounts stay within limits
+      quantities = {};
+      var kept = 0;
+      products.forEach(function (product) {
+        var amount = Math.floor(Number(saved[product.id]));
+        if (amount > 0 && kept < cart.maxLines) {
+          quantities[product.id] = Math.min(cart.maxQuantity, amount);
+          kept++;
+        }
+      });
+      saved = {};
+      var focusWasOnStatus = document.activeElement === cartStatus;
+      cartStatus.hidden = true;
+      showProducts();
+      // The status is gone: keep the focus from being lost
+      if (focusWasOnStatus) cartList.focus();
+    };
+    var loadProducts = function () {
+      showSkeleton();
+      showStatus("Cargando productos\\u2026", false);
+      // The preview tab brings its products: no request is made
+      if (cart.productos) {
+        applyProducts(cart.productos);
+        return;
+      }
+      fetch(cart.productsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: config.apiKey },
+        body: JSON.stringify({ p_slug: config.slug })
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error("products");
+          return response.json();
+        })
+        .then(applyProducts)
+        .catch(function () {
+          cartList.textContent = "";
+          showStatus("No pudimos cargar los productos.", true, true);
+          var retry = element("button", "btn btn-sm", "Reintentar");
+          retry.type = "button";
+          retry.addEventListener("click", function () {
+            // The button disappears with the message: focus moves to the status
+            loadProducts();
+            cartStatus.focus();
+          });
+          cartStatus.appendChild(retry);
+        });
+    };
+
+    [].slice.call(form.querySelectorAll('input[name="pedido_entrega"]')).forEach(function (input) {
+      input.addEventListener("change", syncDelivery);
+    });
+
+    // The bar hides only while the order summary is on screen, not while choosing products
+    if (cartSummary && "IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        summaryVisible = entries[entries.length - 1].isIntersecting;
+        updateBar();
+      }).observe(cartSummary);
+    }
+
+    cartApi = {
+      refresh: refresh,
+      ready: function () { return loaded; },
+      // What goes with the answers: nothing chosen is just an inquiry
+      order: function () {
+        var picked = chosen();
+        if (!picked.length) return { lines: [] };
+        var lines = picked.map(function (product) {
+          return { producto_id: product.id, cantidad: quantities[product.id] };
+        });
+        // No delivery step: nothing about delivery is sent and the order stays «a coordinar»
+        if (mode === "ninguna") return { lines: lines };
+        var delivery = mode === "elegir"
+          ? (form.elements.pedido_entrega.value === "retiro" ? "retiro" : "envio")
+          : mode;
+        var address = delivery === "envio" ? form.elements.pedido_direccion.value.trim() : "";
+        if (delivery === "envio" && !address) {
+          return { error: "Escribí la dirección de entrega.", field: form.elements.pedido_direccion };
+        }
+        return { lines: lines, delivery: delivery, address: address };
+      },
+      // The order is already saved: a failure drawing this must not look like a failed order
+      showOrder: function (data, name) {
+        quantities = {};
+        store.clear();
+        refresh();
+        var box = document.getElementById("lead-order");
+        try {
+          box.textContent = "";
+          box.appendChild(element("h2", "", "\\u00a1Recibimos tu pedido #" + data.pedido_id + "!"));
+          if (Array.isArray(data.lineas)) {
+            var list = element("ul", "order-lines");
+            data.lineas.forEach(function (line) {
+              var row = element("li");
+              row.appendChild(element("span", "", line.cantidad + " \\u00d7 " + line.nombre));
+              row.appendChild(element("span", "", money.format(line.subtotal)));
+              list.appendChild(row);
+            });
+            box.appendChild(list);
+          }
+          var totals = element("div", "cart-totals");
+          var totalRow = element("div", "row total");
+          totalRow.appendChild(element("span", "", "Total"));
+          totalRow.appendChild(element("b", "", money.format(data.total)));
+          totals.appendChild(totalRow);
+          box.appendChild(totals);
+          if (cart.phone && Array.isArray(data.lineas)) {
+            var link = element("a", "btn", "Abrir WhatsApp");
+            link.setAttribute("aria-label", "Abrir WhatsApp (se abre en una pestaña nueva)");
+            link.href = "https://wa.me/" + cart.phone + "?text=" + encodeURIComponent(cartMessage(data, name));
+            link.target = "_blank";
+            link.rel = "noopener";
+            box.appendChild(link);
+          }
+        } catch (e) {}
+        box.hidden = false;
+        box.focus();
+      }
+    };
+    syncDelivery();
+    loadProducts();
+  }
+
   form.addEventListener("submit", function (event) {
     event.preventDefault();
+    if (busy) return;
     errorBox.hidden = true;
+    [].slice.call(form.querySelectorAll("[aria-invalid]")).forEach(function (field) {
+      field.removeAttribute("aria-invalid");
+      field.removeAttribute("aria-describedby");
+    });
     var answers = {};
     var missing = null;
     config.fields.forEach(function (field) {
@@ -803,55 +1513,97 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
       if (field.required && !value.length && !missing) missing = field.label;
     });
     if (missing) {
-      showError("Completa este campo: " + missing);
+      showError("Completá este campo: " + missing);
+      return;
+    }
+    // Products still loading or failed: a send now would go as an inquiry, without the order
+    if (cartApi && !cartApi.ready()) {
+      showError("Esperá a que carguen los productos o tocá Reintentar.");
+      return;
+    }
+    var order = cartApi ? cartApi.order() : { lines: [] };
+    if (order.error) {
+      showError(order.error, order.field);
       return;
     }
     if (!form.checkValidity()) {
       form.reportValidity();
       return;
     }
+    if (config.preview) {
+      showError("Vista previa: acá no se envía nada.");
+      return;
+    }
     var consent = form.elements.consent;
-    button.disabled = true;
-    post({
+    var original = button.textContent;
+    var payload = {
       answers: answers,
       consent: consent ? consent.checked : false,
       utm: utm,
       website: form.elements.website.value
-    })
+    };
+    if (order.lines.length) {
+      payload.lineas = order.lines;
+      // The same key goes on every retry of this attempt: the database dedupes it
+      payload.clave = orderKey();
+      if (order.delivery) {
+        payload.entrega = order.delivery;
+        payload.direccion = order.address;
+      }
+    }
+    busy = true;
+    button.disabled = true;
+    button.textContent = "Enviando\\u2026";
+    post(payload)
       .then(function (response) {
         return response
           .json()
           .catch(function () { return {}; })
           .then(function (body) {
             if (!response.ok) throw body;
+            return body;
           });
       })
-      .then(function () {
+      .then(function (body) {
+        // Answered: the order is in, so the next one starts with a fresh key
+        if (payload.clave) memory.set(orderKeyStore, "");
         trackLead();
-        finish(answers);
+        finish(answers, body);
       })
       .catch(function (body) {
+        busy = false;
         button.disabled = false;
+        if (cartApi) { cartApi.refresh(); } else { button.textContent = original; }
         showError(
           body && body.message === "rate_limited"
-            ? "Recibimos varios envíos desde tu conexión. Vuelve a intentarlo en unos minutos."
-            : "No pudimos enviar tus datos. Revisa el formulario e inténtalo de nuevo."
+            ? "Recibimos varios envíos desde tu conexión. Volvé a intentarlo en unos minutos."
+            : body && body.hint === "landing_pedido" && typeof body.message === "string" && body.message.length > 0 && body.message.length <= 160
+              ? body.message
+              : "No pudimos enviar tus datos. Revisá el formulario e intentalo de nuevo."
         );
       });
   });
 
   // The bar on phones steps aside while the form is on screen
   var bar = document.getElementById("sticky-cta");
-  var card = document.getElementById("formulario");
-  if (bar && card && window.IntersectionObserver) {
-    new IntersectionObserver(function (entries) {
-      bar.classList.toggle("away", entries[0].isIntersecting);
-    }).observe(card);
+  // The form, and the catalog inside it when there is one
+  var watched = [document.getElementById("formulario"), document.getElementById("pedido")].filter(Boolean);
+  if (bar && watched.length && window.IntersectionObserver) {
+    var visible = [];
+    var stickyObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var at = visible.indexOf(entry.target);
+        if (entry.isIntersecting && at === -1) visible.push(entry.target);
+        if (!entry.isIntersecting && at !== -1) visible.splice(at, 1);
+      });
+      bar.classList.toggle("away", visible.length > 0);
+    });
+    watched.forEach(function (node) { stickyObserver.observe(node); });
   }
 
   var opener = document.getElementById("wa-open");
   var dialog = document.getElementById("wa-dialog");
-  if (opener && dialog && dialog.showModal) {
+  if (opener && dialog && dialog.showModal && !config.preview) {
     var waForm = document.getElementById("wa-form");
     var waError = document.getElementById("wa-error");
     opener.addEventListener("click", function (event) {
@@ -867,7 +1619,7 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
       var name = waForm.elements.name.value.trim();
       var phone = waForm.elements.phone.value.trim();
       if (!name || phone.replace(/\\D/g, "").length < 6) {
-        waError.textContent = "Escribe tu nombre y un número válido.";
+        waError.textContent = "Escribí tu nombre y un número válido.";
         waError.hidden = false;
         return;
       }
@@ -893,18 +1645,37 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
         .then(open, open);
     });
   }
+
 })();
 </script>`;
 };
+
+/**
+ * With a cart the form goes below the page, wide enough for the shop: a
+ * product grid does not fit in the narrow column next to the hero.
+ */
+const formBesideHero = ({ design, carrito }: LandingContent) =>
+  design.formPosition === "side" && !carrito.activo;
+
+/**
+ * Where a script runs: the published page, and the preview tab of a page with
+ * a cart (it brings its products and sends nothing). The editor's canvas is
+ * sandboxed without scripts, and thumbnails are inert.
+ */
+const isScripted = (content: LandingContent, options: RenderOptions) =>
+  !options.editable &&
+  (!options.preview ||
+    (content.carrito.activo && options.productos?.estado === "listo"));
 
 export const renderLandingPage = (
   content: LandingContent,
   options: RenderOptions,
 ) => {
-  const { hero, design, seo } = content;
-  const isSide = design.formPosition === "side";
+  const { hero, seo } = content;
+  const isSide = formBesideHero(content);
   const editable = !!options.editable;
   const preview = !!options.preview || editable;
+  const scripted = isScripted(content, options);
   const privacyHref = landingPrivacyPath(options.slug);
   return `<!doctype html>
 <html lang="es">
@@ -914,13 +1685,14 @@ ${preview ? "" : trackingHead(content)}
 </head>
 <body>
 ${renderHeader(content, editable)}
-${renderHero(content, editable, privacyHref)}
+${renderHero(content, editable, privacyHref, options)}
 ${renderSections(content, editable)}
-${isSide ? "" : `<section class="section tint" id="s-form"><div class="wrap"><div class="form-below">${renderForm(content, editable, privacyHref)}</div></div></section>`}
+${isSide ? "" : `<section class="section tint" id="s-form"><div class="wrap"><div class="form-below${content.carrito.activo ? " wide" : ""}">${renderForm(content, editable, privacyHref, options)}</div></div></section>`}
 ${renderFooter(content, editable, privacyHref)}
-<div class="sticky-cta" id="sticky-cta"><a class="btn" href="#formulario"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a></div>
+<div class="sticky-cta" id="sticky-cta"><a class="btn" href="${ctaHref(content)}"${editLine(editable, "hero.ctaLabel")}>${esc(ctaLabel(content))}</a></div>
+${renderBarraPedido(content, scripted)}
 ${renderWhatsapp(content, preview, editable, privacyHref)}
-${preview ? "" : pageScript(content, options)}
+${scripted ? pageScript(content, options) : ""}
 </body>
 </html>`;
 };

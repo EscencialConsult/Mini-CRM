@@ -69,7 +69,7 @@ export const LoginPage = ({ redirectTo }: { redirectTo?: string }) => {
               inputClassName="h-12 rounded-xl bg-background px-4"
               validate={validarEmailObligatorio}
             />
-            <div className="relative [&_[data-slot=input]]:pr-12">
+            <div className="grid gap-2 [&>[data-slot=form-item]]:contents [&_[data-slot=form-label]]:row-start-1 [&_[data-slot=input]]:col-start-1 [&_[data-slot=input]]:row-start-2 [&_[data-slot=input]]:pr-12">
               <TextInput
                 label="Contraseña"
                 source="password"
@@ -80,7 +80,7 @@ export const LoginPage = ({ redirectTo }: { redirectTo?: string }) => {
               />
               <button
                 type="button"
-                className="absolute right-2 top-[31px] flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="col-start-1 row-start-2 mr-1 flex size-10 items-center self-center justify-self-end justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => setVerClave((visible) => !visible)}
                 aria-label={
                   verClave ? "Ocultar contraseña" : "Mostrar contraseña"

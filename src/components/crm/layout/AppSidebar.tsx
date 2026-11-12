@@ -7,6 +7,7 @@ import {
   Megaphone,
   Package,
   ScrollText,
+  ShoppingBag,
   Tags,
   User,
   UserCog,
@@ -112,6 +113,13 @@ export const AppSidebar = () => {
         etiqueta: "Tablero",
         Icono: Columns3,
         activo: estaEn("/oportunidades"),
+      },
+      {
+        modulo: "pedidos",
+        to: "/pedidos",
+        etiqueta: "Pedidos",
+        Icono: ShoppingBag,
+        activo: estaEn("/pedidos"),
       },
       {
         modulo: "ventas",

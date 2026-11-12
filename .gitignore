@@ -23,3 +23,8 @@ CREDENCIALES.local.md
 # supabase local
 supabase/.temp/
 supabase/.branches/
+
+# agente / sesiones (no subir transcripciones ni config local)
+.opencode/
+opencode.json
+session-*.md

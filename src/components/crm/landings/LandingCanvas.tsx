@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { useElementSize } from "@/hooks/use-element-size";
 import { cn } from "@/lib/utils";
 
-import { renderLandingPage } from "./pagina/render.ts";
+import { useProductos } from "../productos/useProductos";
+import { type ProductosVistaPrevia, renderLandingPage } from "./pagina/render.ts";
 import {
   type LandingContent,
   type LandingSectionType,
@@ -124,9 +125,31 @@ export const LandingCanvas = ({
   const [doc, setDoc] = useState<Document | null>(null);
   const [popover, setPopover] = useState<CanvasPopoverState | null>(null);
 
+  // The order block of the preview shows the real products, read through the
+  // CRM (no public RPC is opened for it)
+  const { activos, isPending: cargandoProductos, hayError } = useProductos();
+  const productos = useMemo<ProductosVistaPrevia>(() => {
+    if (cargandoProductos) return { estado: "cargando" };
+    if (hayError) return { estado: "error" };
+    return {
+      estado: "listo",
+      lista: activos.map(({ id, nombre, descripcion, precio }) => ({
+        id,
+        nombre,
+        descripcion: descripcion ?? undefined,
+        precio,
+      })),
+    };
+  }, [activos, cargandoProductos, hayError]);
   const html = useMemo(
-    () => renderLandingPage(content, { slug, submitUrl: "", editable: true }),
-    [content, slug],
+    () =>
+      renderLandingPage(content, {
+        slug,
+        submitUrl: "",
+        editable: true,
+        productos,
+      }),
+    [content, slug, productos],
   );
   const context = useMemo(
     () => buildCanvasContext(content, translate),
@@ -289,6 +312,12 @@ export const LandingCanvas = ({
     // Nothing on the canvas navigates, toggles or submits
     const handleClick = (event: MouseEvent) => {
       event.preventDefault();
+      // The canvas runs no script: the shop cards only say where to try them.
+      // This is checked first so a click on them never selects a section or field.
+      if (closest(event.target, "[data-cart-preview]")) {
+        notify(`${EDITOR}.canvas.cart_preview`, { type: "info" });
+        return;
+      }
       const button = closest(event.target, "[data-action]");
       if (button) {
         runAction(button);
@@ -425,11 +454,14 @@ export const LandingCanvas = ({
     };
   }, [doc, focusAfterWrite, scrollTo, notify]);
 
+  // The blob page inherits this origin (the CRM's), so its script runs in
+  // preview mode: no request and no localStorage or sessionStorage access.
   const openInNewTab = () => {
     const page = renderLandingPage(content, {
       slug,
       submitUrl: "",
       preview: true,
+      productos,
     });
     const url = URL.createObjectURL(new Blob([page], { type: "text/html" }));
     window.open(url, "_blank", "noopener");

@@ -9,6 +9,7 @@ export type Modulo =
   | "panel"
   | "clientes"
   | "oportunidades"
+  | "pedidos"
   | "actividades"
   | "productos"
   | "ventas"
@@ -41,6 +42,13 @@ export const MODULOS: readonly DefinicionModulo[] = [
     nombre: "Tablero",
     descripcion: "Oportunidades por etapa y listado.",
     ruta: "/oportunidades",
+  },
+  {
+    id: "pedidos",
+    nombre: "Pedidos",
+    descripcion:
+      "Pedidos de WhatsApp y de la landing: seguimiento y cambio de estado.",
+    ruta: "/pedidos",
   },
   {
     id: "actividades",

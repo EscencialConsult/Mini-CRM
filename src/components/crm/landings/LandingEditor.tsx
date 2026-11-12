@@ -3,7 +3,9 @@ import {
   AlertCircle,
   ArrowLeft,
   Check,
+  CircleAlert,
   ExternalLink,
+  HelpCircle,
   Loader2,
   Redo2,
   Undo2,
@@ -12,8 +14,15 @@ import { useDataProvider, useNotify, useTranslate } from "ra-core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+
+import { Pill } from "../shared/badges";
 
 import {
   findPublishProblems,
@@ -91,6 +100,48 @@ const isTextInput = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
     ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+/**
+ * A short guide to the three tabs and how to publish, one click away from
+ * anywhere in the editor.
+ */
+const EditorHelp = () => {
+  const translate = useTranslate();
+  const t = (key: string) => translate(`${EDITOR}.help.${key}`);
+  const steps: LandingEditorTab[] = ["design", "settings", "results"];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" size="sm" variant="ghost">
+          <HelpCircle />
+          {t("open")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 space-y-3">
+        <p className="text-sm font-semibold">{t("title")}</p>
+        <ul className="space-y-2">
+          {steps.map((step) => (
+            <li key={step} className="flex gap-2 text-sm">
+              <span
+                aria-hidden
+                className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary"
+              />
+              <span>
+                <span className="font-medium">
+                  {translate(`${EDITOR}.tabs.${step}`)}:{" "}
+                </span>
+                {t(step)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="border-t pt-3 text-sm text-muted-foreground">
+          {t("publish")}
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 /**
  * The editor of a landing: the page edited in place, what is not seen on it in
@@ -316,14 +367,20 @@ export const LandingEditor = ({ landing: initial }: { landing: Landing }) => {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
+          {hasUnpublishedChanges && (
+            <Pill tono="aviso">
+              {translate(`${EDITOR}.changes_pending`)}
+            </Pill>
+          )}
           {problems.length > 0 && (
             <button
               type="button"
-              className="text-sm text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
+              className="inline-flex items-center gap-1 text-sm text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
               onClick={() =>
                 goTo({ tab: "settings", anchor: SETTINGS_ANCHORS.checklist })
               }
             >
+              <CircleAlert aria-hidden className="size-4 shrink-0" />
               {translate(`${EDITOR}.checklist.pending`, {
                 smart_count: problems.length,
               })}
@@ -349,18 +406,36 @@ export const LandingEditor = ({ landing: initial }: { landing: Landing }) => {
         </div>
       </header>
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(value as LandingEditorTab)}
-      >
-        <TabsList>
-          {tabs.map((item) => (
-            <TabsTrigger key={item} value={item}>
-              {translate(`${EDITOR}.tabs.${item}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs
+          value={tab}
+          onValueChange={(value) => setTab(value as LandingEditorTab)}
+        >
+          <TabsList>
+            {tabs.map((item) => (
+              <TabsTrigger key={item} value={item}>
+                {translate(`${EDITOR}.tabs.${item}`)}
+                {item === "settings" && problems.length > 0 && (
+                  <>
+                    <span
+                      aria-hidden
+                      className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground"
+                    >
+                      {problems.length}
+                    </span>
+                    <span className="sr-only">
+                      {translate(`${EDITOR}.checklist.pending`, {
+                        smart_count: problems.length,
+                      })}
+                    </span>
+                  </>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <EditorHelp />
+      </div>
 
       {/* The canvas stays mounted: coming back keeps where the page was */}
       <div className={cn("flex min-h-0 flex-1", tab !== "design" && "hidden")}>
@@ -398,7 +473,7 @@ export const LandingEditor = ({ landing: initial }: { landing: Landing }) => {
               >
                 <Redo2 />
               </Button>
-              <span className="hidden text-xs text-muted-foreground lg:inline">
+              <span className="text-xs text-muted-foreground">
                 {translate(`${EDITOR}.canvas.hint`)}
               </span>
             </>

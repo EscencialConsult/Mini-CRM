@@ -50,6 +50,8 @@ export const mensajesLandings = {
     email: "Correo de contacto",
     email_hint: "Se muestra en el pie y en la política de privacidad.",
     submit: "Crear y editar",
+    submit_disabled:
+      "Completá el nombre y una dirección válida para continuar.",
     error: "No se pudo crear. ¿Ya existe una landing con esa dirección?",
   },
   templates: {
@@ -64,6 +66,10 @@ export const mensajesLandings = {
     consulting: {
       name: "Consultoría de RRHH",
       help: "Para ofrecer diagnóstico y acompañamiento.",
+    },
+    ventas: {
+      name: "Tienda / Ventas",
+      help: "Catálogo de productos con carrito y pedido. Sumá las secciones que quieras.",
     },
   },
   problems: {
@@ -82,6 +88,8 @@ export const mensajesLandings = {
       "Después de enviar se abre WhatsApp, pero falta el número.",
     whatsapp_missing:
       "Falta el número del botón de WhatsApp, o desactivá el botón.",
+    cart_phone_missing:
+      "Los productos están activos, pero falta el WhatsApp donde llegan los pedidos.",
     video_invalid: "El enlace del video no es de YouTube ni de Vimeo.",
     tracking_invalid: "El identificador de medición no es válido.",
     placeholder_left: "Quedan textos [COMPLETAR] por reemplazar.",
@@ -93,6 +101,18 @@ export const mensajesLandings = {
       settings: "Ajustes",
       results: "Resultados",
     },
+    help: {
+      open: "¿Cómo funciona?",
+      title: "Cómo se arma una landing",
+      design:
+        "La página se edita en el momento. Tocá un texto y escribilo; mové las secciones por el asa y sumá nuevas con el botón +.",
+      settings:
+        "Lo que no se ve en la página: nombre y dirección, formulario, productos y pedido, seguimiento y campañas.",
+      results: "Las visitas, los contactos y las ventas que trajo la landing.",
+      publish:
+        "Cuando la lista de pendientes esté vacía, prendé el interruptor para publicarla. Si ya está publicada, usá «Publicar cambios».",
+    },
+    changes_pending: "Con cambios sin publicar",
     desktop: "Escritorio",
     mobile: "Móvil",
     open_preview: "Abrir aparte",
@@ -139,6 +159,8 @@ export const mensajesLandings = {
       add_video: "Agregar un video de YouTube o Vimeo",
       change_video: "Video: %{url}",
       highlight: "Punto destacado",
+      cart_preview:
+        "Probalo en la página publicada: acá el carrito es solo una vista previa.",
       section_removed: "Sección eliminada. Podés deshacerlo con Ctrl+Z.",
     },
     checklist: {
@@ -338,6 +360,96 @@ export const mensajesLandings = {
       task_placeholder: "Sin tarea",
       task_due: "Vence",
     },
+    cart: {
+      title: "Productos y pedido",
+      help: "Tus visitantes eligen productos en el mismo formulario y se guarda como pedido: queda en Pedidos, con los precios del catálogo, y pueden abrir WhatsApp con el mensaje armado. Se publica junto con la landing.",
+      enabled: "Activar los productos en el formulario",
+      enabled_hint:
+        "Apagado, el formulario no muestra productos. Lo que configures abajo se conserva.",
+      test_hint:
+        "Para probarlo de verdad: publicá la landing y abrila con el botón Ver. En el editor, las tarjetas de productos son solo una vista previa.",
+      unpublish_warning:
+        "Apagaste el carrito pero la landing publicada todavía lo muestra. Publicá para quitarlo.",
+      publish_warning:
+        "Publicá la landing para que los visitantes vean los productos: lo que ven es la versión publicada, no el borrador.",
+      no_phone_warning:
+        "Falta el número de WhatsApp: sin él no vas a poder publicar la landing.",
+      delivery: "Entrega",
+      delivery_help:
+        "La entrega la decidís vos: la landing no promete nada que no elijas acá.",
+      delivery_options: {
+        elegir: "Que elija",
+        envio: "Solo envío",
+        retiro: "Solo retiro",
+        ninguna: "Sin entrega",
+      },
+      delivery_hint: {
+        elegir:
+          "La persona elige entre envío y retiro. Con envío, escribe la dirección.",
+        envio: "Todos los pedidos son con envío: solo se pide la dirección.",
+        retiro:
+          "Todos los pedidos se retiran en el local: se muestra «Retiro en el local».",
+        ninguna:
+          'Sin entrega: el pedido queda "a coordinar" y lo resolvés por WhatsApp.',
+      },
+      products: "Productos que se ofrecen",
+      products_help:
+        "Se ofrecen solo productos activos del catálogo; sus precios salen de ahí, no de la página.",
+      products_mode: "Qué productos mostrar",
+      products_all: "Todos los activos",
+      products_some: "Solo algunos",
+      products_all_help:
+        "Se muestran todos los productos activos, incluidos los que agregues más adelante.",
+      products_some_help:
+        "Tildá los productos a ofrecer. Si no tildás ninguno, se ofrecen todos los activos.",
+      loading: "Cargando productos",
+      products_error: "No se pudieron cargar los productos. Probá de nuevo.",
+      products_empty:
+        "Todavía no hay productos activos. Cargalos en Productos para poder ofrecerlos.",
+      products_none_active:
+        "No hay productos activos: el carrito va a quedar vacío hasta que cargues alguno en Productos.",
+      products_search: "Buscar un producto",
+      products_clear: "Quitar la selección",
+      products_chosen:
+        "%{smart_count} producto elegido |||| %{smart_count} productos elegidos",
+      products_offered:
+        "Se ofrece %{smart_count} producto |||| Se ofrecen %{smart_count} productos",
+      products_max: "Máximo %{max} productos",
+      products_none_chosen: "Ninguno elegido: se ofrecen todos los activos.",
+      products_list: "Productos del catálogo",
+      products_no_match: "Ningún producto coincide con la búsqueda.",
+      inactive: "inactivo",
+      whatsapp: "WhatsApp que recibe el pedido",
+      whatsapp_help:
+        "Después de guardar el pedido, la pantalla de gracias ofrece abrir un chat con este número y el mensaje ya escrito.",
+      phone: "Número de WhatsApp",
+      phone_hint:
+        "Con código de país, como +54 9 11 1234-5678 (sin 0 ni 15). Es el número del negocio que atiende los pedidos. Si lo dejás vacío, se usa el número del botón de WhatsApp (si está activado).",
+      phone_invalid: "Falta un número válido, con código de país.",
+      phone_complete_hint:
+        "La landing usa el número tal cual: para que el chat abra, tiene que ser %{numero}.",
+      phone_complete: "Usar %{numero}",
+      phone_use_button: "Usar el número del botón de WhatsApp",
+      button_label: "Texto del botón",
+      button_label_hint:
+        "El botón de envío del formulario cuando la persona ya eligió productos. Sin productos, usa el texto del formulario.",
+      message: "Mensaje de WhatsApp",
+      message_help:
+        "Lo que le llega al negocio por WhatsApp. Podés cambiarlo usando las variables de abajo.",
+      template: "Plantilla del mensaje",
+      variables: "Variables disponibles (tocá una para agregarla al final):",
+      variables_help: {
+        pedido: "el número de pedido",
+        nombre: "el nombre de quien compra",
+        lineas: "un renglón por producto, con cantidad y subtotal",
+        total: "el total del pedido",
+      },
+      variable_add: "Agregar %{variable} al mensaje: %{descripcion}",
+      template_restore: "Restaurar el mensaje original",
+      preview: "Vista previa",
+      preview_note:
+        "Ejemplo con %{productos} y un comprador inventado: en la landing va lo que elija cada persona y el número real del pedido.",
+    },
     design: {
       palette: "Colores",
       palette_help: "Elegí una combinación y ajustala si hace falta.",
@@ -374,11 +486,22 @@ export const mensajesLandings = {
     settings: {
       general: "Nombre y dirección",
       name_missing: "Escribí un nombre para reconocerla.",
+      index: "En esta sección",
       groups: {
         publication: "Publicación",
         form: "Formulario",
+        cart: "Productos y pedido",
         follow_up: "Seguimiento",
         campaigns: "Campañas",
+      },
+      groups_help: {
+        publication:
+          "Nombre, dirección, cómo se ve al compartir y política de privacidad.",
+        form: "Qué pasa después de enviar, el botón de WhatsApp y el consentimiento.",
+        cart: "Productos, entrega, WhatsApp del pedido y el mensaje que recibe el negocio.",
+        follow_up:
+          "A quién van los clientes nuevos, con qué etiquetas y qué tarea.",
+        campaigns: "Enlaces para anuncios y la medición de anuncios.",
       },
       name: "Nombre",
       name_hint: "Solo lo ven ustedes, para reconocerla en el CRM.",
@@ -449,7 +572,14 @@ export const mensajesLandings = {
       new: "Nuevo",
       whatsapp: "WhatsApp",
       form: "Formulario",
+      pedido: "Pedido",
       no_name: "Cliente eliminado",
+      empty_title: "Todavía no hay datos en este período",
+      empty_help:
+        "Cuando la landing reciba visitas y contactos, vas a ver las cifras acá. Probá con un período más largo.",
+      draft_title: "La landing no está publicada",
+      draft_help:
+        "Publicala para empezar a medir. Mientras tanto, acá solo se ven los datos anteriores.",
     },
   },
 };

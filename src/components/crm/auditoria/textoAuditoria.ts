@@ -35,6 +35,11 @@ const SUSTANTIVOS: Record<EntidadAuditoria, Sustantivo> = {
     conDe: "de la landing",
     conA: "a la landing",
   },
+  pedidos: {
+    conArticulo: "el pedido",
+    conDe: "del pedido",
+    conA: "al pedido",
+  },
 };
 
 /** "Creó el cliente “Juan Pérez”", sin el nombre de quien lo hizo. */
@@ -105,6 +110,14 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   modulos: "Módulos",
   productos: "Productos",
   canal_id: "Canal",
+  tipo_entrega: "Entrega",
+  entrega_en: "Fecha de entrega",
+  nota: "Nota",
+  total: "Total",
+  origen: "Origen",
+  telefono_whatsapp: "WhatsApp del comprador",
+  prueba: "Pedido de prueba",
+  entregado_en: "Entregado el",
 };
 
 /** Campos internos que no aportan al detalle de un cambio. */

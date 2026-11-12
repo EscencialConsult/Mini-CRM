@@ -7,6 +7,8 @@ import { useCallback } from "react";
 const CLAVES_DERIVADAS = [
   "clientes",
   "oportunidades",
+  "pedidos",
+  "pedido_historial",
   "actividades",
   "productos",
   "canales",

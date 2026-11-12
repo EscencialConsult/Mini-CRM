@@ -182,6 +182,87 @@ export interface LandingAutomation {
   tagIds: number[];
 }
 
+/**
+ * Carrito de la landing: parte del mismo formulario. El visitante elige
+ * productos junto a sus datos y se guarda un pedido en el CRM (landing_recibir,
+ * con los precios de la base); después puede abrir WhatsApp con el mensaje
+ * armado. Se publica con la landing: no tiene nada reservado.
+ */
+export interface LandingCarrito {
+  activo: boolean;
+  /** Productos que se ofrecen; vacío: todos los activos */
+  productoIds: number[];
+  /** Número al que se manda el pedido; vacío: se usa el del botón de WhatsApp (si está activado); sin ninguno no se puede publicar */
+  telefonoWhatsapp: string;
+  /** Variables: {pedido}, {nombre}, {lineas}, {total} */
+  plantillaMensaje: string;
+  /** Texto del botón de envío del formulario cuando ya se eligió algún producto */
+  tituloBoton: string;
+  /**
+   * Cómo se entrega, lo decide el negocio: "elegir" (la persona elige envío o
+   * retiro), "envio" (solo pide la dirección), "retiro" (en el local) o
+   * "ninguna" (el pedido queda «a coordinar»).
+   */
+  entrega: CarritoEntrega;
+}
+
+export const CARRITO_ENTREGAS = ["elegir", "envio", "retiro", "ninguna"] as const;
+export type CarritoEntrega = (typeof CARRITO_ENTREGAS)[number];
+
+export const CARRITO_PLANTILLA_MENSAJE =
+  "Hola, soy {nombre}. Acabo de hacer el pedido #{pedido}:\n{lineas}\nTotal: {total}";
+export const CARRITO_TITULO_BOTON = "Enviar pedido";
+export const CARRITO_MAX_PRODUCTOS = 200;
+export const CARRITO_MAX_LINEAS = 30;
+export const CARRITO_MAX_CANTIDAD = 99;
+
+export interface LineaCarritoMensaje {
+  nombre: string;
+  cantidad: number;
+  precio: number;
+  subtotal: number;
+}
+
+export interface DatosMensajeCarrito {
+  pedido: number | string;
+  nombre: string;
+  lineas: LineaCarritoMensaje[];
+  total: number;
+}
+
+export const formatCarritoMoneda = (valor: number) =>
+  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(
+    valor,
+  );
+
+/**
+ * El texto que se manda por WhatsApp: la plantilla con {pedido}, {nombre},
+ * {lineas} y {total} reemplazados. Una línea por producto, "• 2 × Nombre — $ 1.000,00".
+ * La landing publicada trae su propia copia de esta lógica (render.ts): si
+ * cambia una, cambia la otra.
+ */
+export const armarMensajeCarrito = (
+  plantilla: string,
+  datos: DatosMensajeCarrito,
+): string => {
+  const lineas = datos.lineas
+    .map(
+      (linea) =>
+        `• ${linea.cantidad} × ${linea.nombre} — ${formatCarritoMoneda(linea.subtotal)}`,
+    )
+    .join("\n");
+  const valores: Record<string, string> = {
+    pedido: String(datos.pedido),
+    nombre: datos.nombre,
+    lineas,
+    total: formatCarritoMoneda(datos.total),
+  };
+  return (plantilla.trim() ? plantilla : CARRITO_PLANTILLA_MENSAJE).replace(
+    /\{\s*(pedido|nombre|lineas|total)\s*\}/g,
+    (_, clave: string) => valores[clave],
+  );
+};
+
 export interface LandingContent {
   version: 1;
   design: {
@@ -235,6 +316,8 @@ export interface LandingContent {
   };
   tracking: { facebookPixelId: string; googleTagId: string };
   automation: LandingAutomation;
+  /** Siempre completo al normalizar: las landings anteriores quedan con el carrito apagado */
+  carrito: LandingCarrito;
   seo: { title: string; description: string; imageUrl: string };
   privacy: { title: string; text: string };
   settings: { channel: string };
@@ -293,6 +376,14 @@ export const createEmptyLandingContent = (): LandingContent => ({
     taskTitle: "Contactar al cliente",
     taskDueInDays: 1,
     tagIds: [],
+  },
+  carrito: {
+    activo: false,
+    productoIds: [],
+    telefonoWhatsapp: "",
+    plantillaMensaje: CARRITO_PLANTILLA_MENSAJE,
+    tituloBoton: CARRITO_TITULO_BOTON,
+    entrega: "elegir",
   },
   seo: { title: "", description: "", imageUrl: "" },
   privacy: { title: "Política de privacidad", text: "" },
@@ -364,6 +455,29 @@ const normalizeAutomation = (value: unknown): LandingAutomation => {
           ),
         ].slice(0, MAX_TAGS)
       : [],
+  };
+};
+
+const normalizeCarrito = (value: unknown): LandingCarrito => {
+  const carrito = asObject(value);
+  const plantilla = asText(carrito.plantillaMensaje);
+  const boton = asText(carrito.tituloBoton).trim();
+  return {
+    activo: carrito.activo === true,
+    productoIds: Array.isArray(carrito.productoIds)
+      ? [
+          ...new Set(
+            carrito.productoIds.filter(
+              (id): id is number => Number.isSafeInteger(id) && id > 0,
+            ),
+          ),
+        ].slice(0, CARRITO_MAX_PRODUCTOS)
+      : [],
+    telefonoWhatsapp: asText(carrito.telefonoWhatsapp).trim(),
+    plantillaMensaje: plantilla.trim() ? plantilla : CARRITO_PLANTILLA_MENSAJE,
+    tituloBoton: boton || CARRITO_TITULO_BOTON,
+    // Without it (landings from before) the visitor keeps choosing
+    entrega: asChoice(carrito.entrega, CARRITO_ENTREGAS, "elegir"),
   };
 };
 
@@ -480,6 +594,7 @@ export const normalizeLandingContent = (value: unknown): LandingContent => {
       googleTagId: asText(tracking.googleTagId).trim(),
     },
     automation: normalizeAutomation(input.automation),
+    carrito: normalizeCarrito(input.carrito),
     seo: {
       title: asText(seo.title),
       description: asText(seo.description),
@@ -500,6 +615,17 @@ export const phoneDigits = (phone: string) => {
   const digits = phone.replace(/\D/g, "");
   return digits.length >= 6 ? digits : "";
 };
+
+/**
+ * Number the cart sends the order to: its own, or else the one of the WhatsApp
+ * button, so a store does not have to type the same phone twice.
+ */
+export const carritoTelefono = ({
+  carrito,
+  whatsapp,
+}: Pick<LandingContent, "carrito" | "whatsapp">) =>
+  phoneDigits(carrito.telefonoWhatsapp) ||
+  (whatsapp.enabled ? phoneDigits(whatsapp.phone) : "");
 
 /** Only YouTube and Vimeo: their players are the ones the page allows to load. */
 export const videoEmbedUrl = (value: string) => {
@@ -531,6 +657,7 @@ export const LANDING_PROBLEMS = [
   "thanks_url_invalid",
   "thanks_whatsapp_missing",
   "whatsapp_missing",
+  "cart_phone_missing",
   "video_invalid",
   "tracking_invalid",
   "placeholder_left",
@@ -593,6 +720,9 @@ export const findPublishProblems = (
   }
   if (whatsapp.enabled && !phoneDigits(whatsapp.phone)) {
     problems.push("whatsapp_missing");
+  }
+  if (content.carrito.activo && !carritoTelefono(content)) {
+    problems.push("cart_phone_missing");
   }
   if (
     sections.some(

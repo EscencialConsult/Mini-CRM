@@ -8,7 +8,13 @@ import {
   useRedirect,
   useTranslate,
 } from "ra-core";
-import { useMemo, useState, type FormEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +76,30 @@ export const LandingCreate = () => {
     if (name.trim() && isSlugOk) mutate();
   };
   const showSlugError = slugBlurred && !!slug && !isSlugOk;
+  const submitDisabled = !name.trim() || !isSlugOk;
+
+  // Radiogroup: one tab stop, arrows move (with wrap) and select
+  const cards = useRef(new Map<string, HTMLButtonElement>());
+  const moveTemplate = (event: KeyboardEvent<HTMLDivElement>) => {
+    const total = LANDING_TEMPLATES.length;
+    const current = LANDING_TEMPLATES.findIndex(({ id }) => id === template);
+    let target: number;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      target = (current + 1) % total;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      target = (current - 1 + total) % total;
+    } else if (event.key === "Home") {
+      target = 0;
+    } else if (event.key === "End") {
+      target = total - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const next = LANDING_TEMPLATES[target].id;
+    setTemplate(next);
+    cards.current.get(next)?.focus();
+  };
 
   return (
     <CanAccess
@@ -93,32 +123,72 @@ export const LandingCreate = () => {
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">{t("template")}</legend>
-            <div className="grid gap-3 md:grid-cols-3">
-              {thumbnails.map(({ id, content }) => (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={template === id}
-                  onClick={() => setTemplate(id)}
-                  className={cn(
-                    "relative overflow-hidden rounded-xl border bg-card text-left transition-colors hover:border-primary/60",
-                    template === id && "border-primary ring-1 ring-primary",
-                  )}
-                >
-                  <LandingThumbnail content={content} slug="" />
-                  <span className="block p-3">
-                    <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                      {translate(`resources.landings.templates.${id}.name`)}
-                      {template === id && (
-                        <Check className="size-4 shrink-0 text-primary" />
-                      )}
+            <div
+              role="radiogroup"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              onKeyDown={moveTemplate}
+            >
+              {thumbnails.map(({ id, content }) => {
+                const selected = template === id;
+                const { primaryColor, background } = content.design;
+                return (
+                  <button
+                    key={id}
+                    ref={(node) => {
+                      if (node) cards.current.set(id, node);
+                      else cards.current.delete(id);
+                    }}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-labelledby={`template-${id}-name`}
+                    aria-describedby={`template-${id}-help`}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => setTemplate(id)}
+                    className={cn(
+                      "relative min-w-0 overflow-hidden rounded-xl border bg-card text-left transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                      selected && "border-primary ring-1 ring-primary",
+                    )}
+                  >
+                    <span aria-hidden="true" className="block">
+                      <LandingThumbnail content={content} slug="" />
                     </span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
-                      {translate(`resources.landings.templates.${id}.help`)}
+                    <span className="block p-3">
+                      <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            aria-hidden="true"
+                            className="size-5 shrink-0 rounded-full border border-border"
+                            style={{
+                              backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 45%, ${background.color2} 100%)`,
+                            }}
+                          />
+                          <span
+                            id={`template-${id}-name`}
+                            className="min-w-0 truncate"
+                          >
+                            {translate(
+                              `resources.landings.templates.${id}.name`,
+                            )}
+                          </span>
+                        </span>
+                        {selected && (
+                          <Check
+                            aria-hidden="true"
+                            className="size-4 shrink-0 text-primary"
+                          />
+                        )}
+                      </span>
+                      <span
+                        id={`template-${id}-help`}
+                        className="mt-0.5 block text-sm text-muted-foreground"
+                      >
+                        {translate(`resources.landings.templates.${id}.help`)}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
 
@@ -190,14 +260,25 @@ export const LandingCreate = () => {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-col items-end gap-1.5">
             <Button
               type="submit"
               loading={isPending}
-              disabled={!name.trim() || !isSlugOk}
+              disabled={submitDisabled}
+              aria-describedby={
+                submitDisabled ? "landing-submit-reason" : undefined
+              }
             >
               {t("submit")}
             </Button>
+            {submitDisabled && (
+              <p
+                id="landing-submit-reason"
+                className="text-xs text-muted-foreground"
+              >
+                {t("submit_disabled")}
+              </p>
+            )}
           </div>
         </form>
       </div>

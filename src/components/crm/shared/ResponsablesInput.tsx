@@ -14,7 +14,11 @@ export const ResponsablesInput = () => {
   const { usuarios, opcionesTodas } = useUsuarios();
   const elegibles = new Set(
     usuarios
-      .filter((usuario) => usuario.activo || asignados?.includes(usuario.id))
+      .filter((usuario) =>
+        usuario.sistema
+          ? asignados?.includes(usuario.id)
+          : usuario.activo || asignados?.includes(usuario.id),
+      )
       .map((usuario) => usuario.id),
   );
 

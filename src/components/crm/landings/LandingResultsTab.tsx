@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BarChart3, CircleAlert } from "lucide-react";
 import { useDataProvider, useTranslate } from "ra-core";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -224,9 +224,41 @@ export const LandingResultsTab = ({ landing }: { landing: Landing }) => {
       value: row.envios,
     }));
 
+  // Publicada o no, los datos anteriores siguen ahí: el aviso solo explica por qué
+  const draftNotice = landing.estado !== "publicada" && (
+    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/20 p-3 text-sm text-warning-foreground">
+      <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <span>
+        <span className="font-medium">{t("draft_title")}.</span>{" "}
+        {t("draft_help")}
+      </span>
+    </div>
+  );
+  const sinDatos = stats.visitas === 0 && stats.envios === 0;
+
+  if (sinDatos) {
+    return (
+      <div className="mx-auto w-full max-w-5xl space-y-4">
+        {header}
+        {draftNotice}
+        <div className="rounded-lg border border-dashed bg-card p-8 text-center">
+          <BarChart3
+            aria-hidden
+            className="mx-auto size-8 text-muted-foreground"
+          />
+          <p className="mt-3 font-medium">{t("empty_title")}</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            {t("empty_help")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
       {header}
+      {draftNotice}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
         <Tile label={t("visits")} value={formatNumero(stats.visitas)} />
         <Tile label={t("leads")} value={formatNumero(stats.envios)} />
@@ -330,7 +362,7 @@ export const LandingResultsTab = ({ landing }: { landing: Landing }) => {
                   </span>
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {envio.tipo === "whatsapp" ? t("whatsapp") : t("form")}
+                  {t(envio.tipo === "formulario" ? "form" : envio.tipo)}
                   {" · "}
                   {envio.utm_campaign ||
                     envio.utm_source ||

@@ -129,6 +129,6 @@ npm run typecheck && npm run lint && npm run build
 
 - Historial de las fases recientes (módulos, productos, canales, cierre y Ventas) en [`ROADMAP.md`](ROADMAP.md).
 - Tiempo en cada etapa (requiere un historial de etapas).
-- Publicar el sitio en Netlify con el alias de dominio de las landings y `VITE_LANDINGS_URL`.
+- Publicar el sitio en Netlify con el alias de dominio de las landings y `VITE_LANDINGS_URL` (ver [`DESPLIEGUE.md`](DESPLIEGUE.md), guía paso a paso desde cero).
 - Recordatorios por email (requiere proveedor de envío y una tarea programada).
 - Importación/exportación CSV y reasignación masiva de clientes.

@@ -77,6 +77,8 @@ export const UsuarioList = () => (
     resource="usuarios"
     titulo="Usuarios"
     sort={{ field: "nombre", order: "ASC" }}
+    // El "Bot WhatsApp" es un usuario del sistema: no se gestiona desde acá
+    filter={{ sistema: false }}
     buscar="Buscar por nombre o email"
     filtros={
       <>

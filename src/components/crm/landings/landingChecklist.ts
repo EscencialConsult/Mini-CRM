@@ -20,9 +20,15 @@ export const SETTINGS_ANCHORS = {
   afterSend: "landing-settings-after-send",
   whatsapp: "landing-settings-whatsapp",
   consent: "landing-settings-consent",
+  cart: "landing-settings-cart",
   tracking: "landing-settings-tracking",
   sharing: "landing-settings-sharing",
   privacy: "landing-settings-privacy",
+  groupPublication: "landing-group-publication",
+  groupForm: "landing-group-form",
+  groupCart: "landing-group-cart",
+  groupFollowUp: "landing-group-follow-up",
+  groupCampaigns: "landing-group-campaigns",
 } as const;
 
 const onPage = (anchor: string): LandingEditorTarget => ({
@@ -79,6 +85,8 @@ export const problemTarget = (
       return inSettings("afterSend");
     case "whatsapp_missing":
       return inSettings("whatsapp");
+    case "cart_phone_missing":
+      return inSettings("cart");
     case "tracking_invalid":
       return inSettings("tracking");
     case "slug_invalid":

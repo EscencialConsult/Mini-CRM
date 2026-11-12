@@ -13,13 +13,22 @@ import { useRefrescarProductos } from "./useProductos";
 
 const aNulo = (valor: string): string | null => valor.trim() || null;
 
+const enUso = (producto: Producto) =>
+  !!producto.oportunidades || !!producto.pedidos;
+
 const usoDe = (producto: Producto) => {
-  const uso = producto.oportunidades
-    ? `Está en ${plural(producto.oportunidades, "oportunidad", "oportunidades")}: no se puede borrar, se desactiva.`
-    : "Ninguna oportunidad lo tiene todavía.";
+  const lugares = [
+    producto.oportunidades
+      ? plural(producto.oportunidades, "oportunidad", "oportunidades")
+      : null,
+    producto.pedidos ? plural(producto.pedidos, "pedido", "pedidos") : null,
+  ].filter(Boolean);
+  const uso = lugares.length
+    ? `Está en ${lugares.join(" y ")}: no se puede borrar, se desactiva.`
+    : "Ninguna oportunidad ni pedido lo tiene todavía.";
   return producto.activo
     ? uso
-    : `Inactivo: no se puede agregar a oportunidades. ${uso}`;
+    : `Inactivo: no se puede agregar a oportunidades ni pedidos. ${uso}`;
 };
 
 /**
@@ -53,7 +62,7 @@ export const ProductoFormDialog = ({
       onClose={onClose}
       onSaved={alTerminar}
       acciones={(producto) =>
-        producto.oportunidades ? null : (
+        enUso(producto) ? null : (
           <DeleteRecordButton
             resource="productos"
             id={producto.id}

@@ -60,6 +60,14 @@ const columnas: ColumnaLista<Producto>[] = [
     etiquetaTarjeta: "Oportunidades",
     celda: (producto) => producto.oportunidades ?? 0,
   },
+  {
+    id: "pedidos",
+    encabezado: "Pedidos",
+    orden: "pedidos",
+    alinear: "derecha",
+    etiquetaTarjeta: "Pedidos",
+    celda: (producto) => producto.pedidos ?? 0,
+  },
 ];
 
 /** Catálogo de productos (módulo Productos): precio de lista, altas y bajas. */
