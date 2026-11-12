@@ -16,7 +16,7 @@ import {
   hoyIso,
 } from "../domain/format";
 import type { Actividad, Cliente } from "../domain/types";
-import { useCrmIdentity } from "../providers/authProvider";
+import { useCrmIdentity, useModulos } from "../providers/authProvider";
 import { Pill } from "../shared/badges";
 
 type Alcance = "mias" | "todas";
@@ -167,6 +167,7 @@ const ProximosContactos = ({ responsableId }: { responsableId?: string }) => {
 /** Seguimiento: actividades pendientes y próximos contactos, propios o de todo el equipo. */
 export const Seguimiento = () => {
   const { identity } = useCrmIdentity();
+  const { tiene } = useModulos();
   const [alcance, setAlcance] = useStore<Alcance>("panel.alcance", "mias");
   const responsableId = alcance === "mias" ? identity?.id : undefined;
 
@@ -189,8 +190,12 @@ export const Seguimiento = () => {
       <CardContent className="grid gap-6 lg:grid-cols-2">
         {identity && (
           <>
-            <ActividadesPendientes responsableId={responsableId} />
-            <ProximosContactos responsableId={responsableId} />
+            {tiene("actividades") && (
+              <ActividadesPendientes responsableId={responsableId} />
+            )}
+            {tiene("clientes") && (
+              <ProximosContactos responsableId={responsableId} />
+            )}
           </>
         )}
       </CardContent>

@@ -6,6 +6,7 @@ import { ReferenceInput } from "@/components/admin/reference-input";
 import { TextInput } from "@/components/admin/text-input";
 
 import type { Oportunidad, TipoActividad } from "../domain/types";
+import { useModulos } from "../providers/authProvider";
 import { SelectInputOpcional } from "../shared/SelectInputOpcional";
 import { ResponsablesInput } from "../shared/ResponsablesInput";
 import { SeccionFormulario } from "../shared/SeccionFormulario";
@@ -48,6 +49,7 @@ const OportunidadDelCliente = () => {
 export const ActividadInputs = ({ clienteFijo }: ActividadInputsProps) => {
   const tipo = useWatch({ name: "tipo" }) as TipoActividad | undefined;
   const esNota = tipo === "nota";
+  const conOportunidades = useModulos().tiene("oportunidades");
 
   return (
     <>
@@ -90,7 +92,8 @@ export const ActividadInputs = ({ clienteFijo }: ActividadInputsProps) => {
               />
             </ReferenceInput>
           )}
-          <OportunidadDelCliente />
+          {/* Sin Tablero no hay oportunidades para elegir; un vínculo ya cargado se conserva */}
+          {conOportunidades && <OportunidadDelCliente />}
         </div>
       </SeccionFormulario>
     </>

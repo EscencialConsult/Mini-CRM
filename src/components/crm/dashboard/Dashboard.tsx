@@ -1,4 +1,4 @@
-import { useStore } from "ra-core";
+import { Navigate, useStore } from "ra-core";
 
 import {
   Select,
@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { rutaInicial, tieneModulo, type Modulo } from "../domain/modulos";
 import { useCrmIdentity } from "../providers/authProvider";
 import { Embudo } from "./Embudo";
 import { Indicadores } from "./Indicadores";
@@ -15,7 +16,23 @@ import { PERIODOS, rangoDePeriodo, type PeriodoId } from "./periodos";
 import { Seguimiento } from "./Seguimiento";
 import { VentasPorMes } from "./VentasPorMes";
 
-/** Panel de control: cada sección carga y falla por separado. */
+const SinModulos = () => (
+  <div className="mx-auto max-w-md space-y-2 py-16 text-center">
+    <h1 className="text-xl font-semibold tracking-tight">
+      Todavía no tenés módulos asignados
+    </h1>
+    <p className="text-sm text-muted-foreground">
+      Pedile a un administrador que te habilite las partes del CRM que vas a
+      usar.
+    </p>
+  </div>
+);
+
+/**
+ * Panel de control: cada sección carga y falla por separado, y solo aparecen
+ * las de los módulos que el usuario tiene. Sin el módulo Panel, lleva a la
+ * primera pantalla que puede abrir.
+ */
 const Dashboard = () => {
   const { identity } = useCrmIdentity();
   const [periodo, setPeriodo] = useStore<PeriodoId>(
@@ -23,6 +40,14 @@ const Dashboard = () => {
     "mes_actual",
   );
   const rango = rangoDePeriodo(periodo);
+
+  if (!identity) return null;
+  if (!tieneModulo(identity, "panel")) {
+    const destino = rutaInicial(identity);
+    return destino ? <Navigate to={destino} replace /> : <SinModulos />;
+  }
+  const tiene = (modulo: Modulo) => tieneModulo(identity, modulo);
+  const conOportunidades = tiene("oportunidades");
 
   return (
     <div className="space-y-6 py-2">
@@ -59,12 +84,14 @@ const Dashboard = () => {
 
       <Indicadores rango={rango} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <VentasPorMes />
-        <Embudo />
-      </div>
+      {conOportunidades && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <VentasPorMes />
+          <Embudo />
+        </div>
+      )}
 
-      <Seguimiento />
+      {(tiene("actividades") || tiene("clientes")) && <Seguimiento />}
     </div>
   );
 };

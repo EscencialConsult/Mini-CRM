@@ -1,10 +1,14 @@
 import type { RaRecord } from "ra-core";
 
+import type { Modulo } from "./modulos";
+
 export type Rol = "administrador" | "vendedor";
 export type TipoCliente = "persona" | "empresa";
 export type EstadoCliente = "activo" | "inactivo";
 export type Etapa = "prospecto" | "calificado" | "propuesta" | "negociacion";
 export type Resultado = "abierta" | "ganada" | "perdida";
+export type MotivoPerdida =
+  "precio" | "competencia" | "sin_respuesta" | "otra_solucion" | "otro";
 export type TipoActividad = "llamada" | "reunion" | "nota" | "tarea";
 export type EntidadAuditoria =
   "clientes" | "oportunidades" | "actividades" | "usuarios" | "landings";
@@ -35,6 +39,8 @@ export interface Usuario extends RaRecord<string> {
   email: string;
   rol: Rol;
   activo: boolean;
+  /** Para el administrador no se usa: tiene todos. */
+  modulos: Modulo[];
   creado_en: string;
 }
 
@@ -55,9 +61,12 @@ export interface Cliente extends RaRecord<number>, Autoria {
   landing_id: number | null;
   /** Ids de sus etiquetas, en el orden en que se pusieron */
   etiquetas: number[];
+  /** Canal de origen: por dónde llegó */
+  canal_id: number | null;
   // Vista clientes_resumen
   asignado_nombre?: string | null;
   landing_nombre?: string | null;
+  canal_nombre?: string | null;
   oportunidades_abiertas?: number;
   importe_abierto?: number;
   actividades_pendientes?: number;
@@ -85,16 +94,56 @@ export interface Etiqueta extends RaRecord<number> {
   creado_por_nombre?: string | null;
 }
 
+export interface Producto extends RaRecord<number>, Autoria {
+  nombre: string;
+  descripcion: string | null;
+  /** Precio de lista */
+  precio: number;
+  /** Inactivo: no se puede agregar a oportunidades (las que ya lo tienen lo conservan). */
+  activo: boolean;
+  // Vista productos_resumen
+  oportunidades?: number;
+}
+
+export interface Canal extends RaRecord<number> {
+  nombre: string;
+  /** Canal que usa el sistema (hoy solo 'landing'): no se borra. */
+  clave: string | null;
+  activo: boolean;
+  creado_en: string;
+  // Vista canales_resumen
+  clientes?: number;
+  oportunidades?: number;
+}
+
+/** Línea de una oportunidad; la base completa `nombre` y `subtotal`. */
+export interface LineaProducto {
+  producto_id: number;
+  nombre?: string;
+  cantidad: number;
+  precio_unitario: number;
+  /** Porcentaje, de 0 a 100. */
+  descuento: number;
+  subtotal?: number;
+}
+
 export interface Oportunidad extends RaRecord<number>, Autoria {
   cliente_id: number;
+  /** Título armado por la base a partir de las líneas ("A", "A y B", "A y 2 más"). */
   producto_servicio: string;
   descripcion: string | null;
+  /** Suma de los subtotales (lo calcula la base). */
   importe_estimado: number;
+  productos: LineaProducto[];
+  canal_id: number | null;
   etapa: Etapa;
   probabilidad: number;
   resultado: Resultado;
   fecha_cierre_estimada: string | null;
   fecha_cierre: string | null;
+  /** Obligatorio si se perdió (catálogo fijo, para los reportes). */
+  motivo_perdida_tipo: MotivoPerdida | null;
+  /** Detalle libre de la pérdida (opcional). */
   motivo_perdida: string | null;
   /** Responsables, todos iguales (vacío: sin asignar). */
   asignados: string[];
@@ -103,6 +152,7 @@ export interface Oportunidad extends RaRecord<number>, Autoria {
   cliente_estado?: EstadoCliente;
   cliente_tipo?: TipoCliente;
   asignado_nombre?: string | null;
+  canal_nombre?: string | null;
 }
 
 export interface Actividad extends RaRecord<number>, Autoria {
@@ -212,6 +262,45 @@ export interface VentasPorMes {
   perdidas_importe: number;
 }
 
+/** Reportes de la sección Ventas (ventas_reporte): cerradas del período y filtros. */
+export interface VentasReporte {
+  indicadores: {
+    total_vendido: number;
+    ventas: number;
+    ticket_promedio: number | null;
+    /** Días promedio entre el alta y el cierre de las ganadas. */
+    ciclo_promedio: number | null;
+    perdidas: number;
+    importe_perdido: number;
+    /** Ganadas sobre ganadas + perdidas (0 a 1); null sin cerradas. */
+    tasa_cierre: number | null;
+  };
+  por_canal: {
+    canal_id: number | null;
+    nombre: string;
+    ventas: number;
+    importe: number;
+  }[];
+  /** Con varios responsables, cada uno suma la venta completa. */
+  ranking: {
+    usuario_id: string;
+    nombre: string;
+    ventas: number;
+    importe: number;
+    perdidas: number;
+    tasa_cierre: number | null;
+    ciclo_promedio: number | null;
+  }[];
+  productos: {
+    producto_id: number;
+    nombre: string;
+    cantidad: number;
+    importe: number;
+    ventas: number;
+  }[];
+  motivos: { motivo: MotivoPerdida; cantidad: number; importe: number }[];
+}
+
 export interface EmbudoEtapa {
   etapa: Etapa;
   cantidad: number;
@@ -231,6 +320,7 @@ export interface NuevoUsuario {
   nombre: string;
   apellido: string;
   rol: Rol;
+  modulos: Modulo[];
 }
 
 export interface CambiosUsuario {
@@ -240,4 +330,5 @@ export interface CambiosUsuario {
   rol?: Rol;
   activo?: boolean;
   password?: string;
+  modulos?: Modulo[];
 }

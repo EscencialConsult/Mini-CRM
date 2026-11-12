@@ -6,6 +6,7 @@ import { RadioButtonGroupInput } from "@/components/admin/radio-button-group-inp
 import { SelectInput } from "@/components/admin/select-input";
 import { TextInput } from "@/components/admin/text-input";
 
+import { CanalInput } from "../canales/CanalInput";
 import { ESTADOS_CLIENTE, TIPOS_CLIENTE } from "../domain/options";
 import type { TipoCliente } from "../domain/types";
 import {
@@ -94,6 +95,10 @@ export const ClienteInputs = () => {
             validate={required()}
           />
           <DateInput source="proximo_contacto" label="Próximo contacto" />
+          <CanalInput
+            label="Canal de origen"
+            helperText="Por dónde llegó; sus oportunidades nuevas lo toman."
+          />
           {esAdministrador && (
             <SelectInputOpcional
               source="asignado_a"

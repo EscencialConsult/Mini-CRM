@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 
 import { formatFecha } from "../domain/format";
+import { nombreModulo } from "../domain/modulos";
 import { ROLES } from "../domain/options";
 import type { Usuario } from "../domain/types";
 import { Pill, RolBadge } from "../shared/badges";
@@ -35,6 +36,21 @@ const columnas: ColumnaLista<Usuario>[] = [
     orden: "rol",
     etiquetaTarjeta: "Rol",
     celda: (usuario) => <RolBadge rol={usuario.rol} />,
+  },
+  {
+    id: "modulos",
+    encabezado: "Módulos",
+    etiquetaTarjeta: "Módulos",
+    celda: (usuario) =>
+      usuario.rol === "administrador" ? (
+        <span className="text-muted-foreground">Todos</span>
+      ) : usuario.modulos.length ? (
+        <span className="text-sm">
+          {usuario.modulos.map(nombreModulo).join(", ")}
+        </span>
+      ) : (
+        <span className="text-destructive">Ninguno</span>
+      ),
   },
   {
     id: "estado",

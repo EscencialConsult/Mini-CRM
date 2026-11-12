@@ -11,12 +11,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { formatMoneda, formatNumero, plural } from "../domain/format";
+import type { Modulo } from "../domain/modulos";
 import type { PanelIndicadores } from "../domain/types";
+import { useModulos } from "../providers/authProvider";
 import { useIrAListado } from "../shared/useIrAListado";
 import type { RangoFechas } from "./periodos";
 import { useIndicadores } from "./usePanel";
 
 interface IndicadorProps {
+  /** Módulo sin el cual el indicador no se muestra. */
+  modulo: Modulo;
   titulo: string;
   valor: string;
   detalle: string;
@@ -47,75 +51,88 @@ const Indicador = ({
   </Card>
 );
 
+/** Módulos de los que el panel muestra indicadores. */
+const MODULOS_CON_INDICADORES: readonly Modulo[] = [
+  "clientes",
+  "oportunidades",
+  "actividades",
+];
+
 const Tarjetas = ({ datos }: { datos: PanelIndicadores }) => {
   const irA = useIrAListado();
+  const { tiene } = useModulos();
+  const indicadores: IndicadorProps[] = [
+    {
+      modulo: "clientes",
+      titulo: "Clientes",
+      valor: formatNumero(datos.clientes_total),
+      detalle: `${formatNumero(datos.clientes_activos)} activos · ${plural(datos.clientes_nuevos, "nuevo", "nuevos")} en el período`,
+      Icono: Users,
+      onAbrir: () => irA("clientes", {}, { field: "creado_en", order: "DESC" }),
+    },
+    {
+      modulo: "oportunidades",
+      titulo: "Oportunidades abiertas",
+      valor: formatNumero(datos.oportunidades_abiertas),
+      detalle: `${formatMoneda(datos.importe_abierto)} · ponderado ${formatMoneda(datos.importe_ponderado)}`,
+      Icono: Briefcase,
+      onAbrir: () =>
+        irA(
+          "oportunidades",
+          { resultado: "abierta" },
+          { field: "importe_estimado", order: "DESC" },
+        ),
+    },
+    {
+      modulo: "oportunidades",
+      titulo: "Ventas ganadas",
+      valor: formatMoneda(datos.ganadas_importe),
+      detalle: `${plural(datos.ganadas_cantidad, "oportunidad ganada", "oportunidades ganadas")} en el período`,
+      Icono: CircleCheckBig,
+      onAbrir: () =>
+        irA(
+          "oportunidades",
+          { resultado: "ganada" },
+          { field: "fecha_cierre", order: "DESC" },
+        ),
+    },
+    {
+      modulo: "oportunidades",
+      titulo: "Ventas perdidas",
+      valor: formatMoneda(datos.perdidas_importe),
+      detalle: `${plural(datos.perdidas_cantidad, "oportunidad perdida", "oportunidades perdidas")} en el período`,
+      Icono: CircleX,
+      onAbrir: () =>
+        irA(
+          "oportunidades",
+          { resultado: "perdida" },
+          { field: "fecha_cierre", order: "DESC" },
+        ),
+    },
+    {
+      modulo: "actividades",
+      titulo: "Tareas pendientes",
+      valor: formatNumero(datos.actividades_pendientes),
+      detalle:
+        datos.actividades_vencidas > 0
+          ? `${plural(datos.actividades_vencidas, "vencida", "vencidas")}`
+          : "Ninguna vencida",
+      Icono: ListChecks,
+      onAbrir: () =>
+        irA(
+          "actividades",
+          { completada: false },
+          { field: "fecha", order: "ASC" },
+        ),
+    },
+  ];
   return (
     <>
-      <Indicador
-        titulo="Clientes"
-        valor={formatNumero(datos.clientes_total)}
-        detalle={`${formatNumero(datos.clientes_activos)} activos · ${plural(datos.clientes_nuevos, "nuevo", "nuevos")} en el período`}
-        Icono={Users}
-        onAbrir={() =>
-          irA("clientes", {}, { field: "creado_en", order: "DESC" })
-        }
-      />
-      <Indicador
-        titulo="Oportunidades abiertas"
-        valor={formatNumero(datos.oportunidades_abiertas)}
-        detalle={`${formatMoneda(datos.importe_abierto)} · ponderado ${formatMoneda(datos.importe_ponderado)}`}
-        Icono={Briefcase}
-        onAbrir={() =>
-          irA(
-            "oportunidades",
-            { resultado: "abierta" },
-            { field: "importe_estimado", order: "DESC" },
-          )
-        }
-      />
-      <Indicador
-        titulo="Ventas ganadas"
-        valor={formatMoneda(datos.ganadas_importe)}
-        detalle={`${plural(datos.ganadas_cantidad, "oportunidad ganada", "oportunidades ganadas")} en el período`}
-        Icono={CircleCheckBig}
-        onAbrir={() =>
-          irA(
-            "oportunidades",
-            { resultado: "ganada" },
-            { field: "fecha_cierre", order: "DESC" },
-          )
-        }
-      />
-      <Indicador
-        titulo="Ventas perdidas"
-        valor={formatMoneda(datos.perdidas_importe)}
-        detalle={`${plural(datos.perdidas_cantidad, "oportunidad perdida", "oportunidades perdidas")} en el período`}
-        Icono={CircleX}
-        onAbrir={() =>
-          irA(
-            "oportunidades",
-            { resultado: "perdida" },
-            { field: "fecha_cierre", order: "DESC" },
-          )
-        }
-      />
-      <Indicador
-        titulo="Tareas pendientes"
-        valor={formatNumero(datos.actividades_pendientes)}
-        detalle={
-          datos.actividades_vencidas > 0
-            ? `${plural(datos.actividades_vencidas, "vencida", "vencidas")}`
-            : "Ninguna vencida"
-        }
-        Icono={ListChecks}
-        onAbrir={() =>
-          irA(
-            "actividades",
-            { completada: false },
-            { field: "fecha", order: "ASC" },
-          )
-        }
-      />
+      {indicadores
+        .filter((indicador) => tiene(indicador.modulo))
+        .map((indicador) => (
+          <Indicador key={indicador.titulo} {...indicador} />
+        ))}
     </>
   );
 };
@@ -123,6 +140,9 @@ const Tarjetas = ({ datos }: { datos: PanelIndicadores }) => {
 /** Indicadores clave del período elegido (una sola consulta agregada). */
 export const Indicadores = ({ rango }: { rango: RangoFechas }) => {
   const { data, isPending, error, refetch } = useIndicadores(rango);
+  const { tiene } = useModulos();
+
+  if (!MODULOS_CON_INDICADORES.some(tiene)) return null;
 
   return (
     <section

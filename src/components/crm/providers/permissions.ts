@@ -1,4 +1,8 @@
-import type { Rol } from "../domain/types";
+import {
+  tieneModulo,
+  type Modulo,
+  type PerfilConModulos,
+} from "../domain/modulos";
 
 type Accion = "list" | "show" | "create" | "edit" | "delete";
 
@@ -6,10 +10,28 @@ const TODAS: readonly Accion[] = ["list", "show", "create", "edit", "delete"];
 const SIN_BORRAR: readonly Accion[] = ["list", "show", "create", "edit"];
 
 /**
- * Permisos de interfaz por rol. La autoridad real es RLS en la base:
- * esto solo evita mostrar acciones que la base va a rechazar.
+ * Recurso de ra-core → módulo que lo habilita. `usuarios` y `canales` no
+ * tienen: son del administrador.
  */
-const PERMISOS: Record<Rol, Record<string, readonly Accion[]>> = {
+const MODULO_DE_RECURSO: Record<string, Modulo> = {
+  clientes: "clientes",
+  oportunidades: "oportunidades",
+  actividades: "actividades",
+  productos: "productos",
+  ventas: "ventas",
+  landings: "landings",
+  etiquetas: "etiquetas",
+  auditoria: "auditoria",
+};
+
+/**
+ * Qué puede hacer cada rol dentro de un módulo habilitado. La autoridad real
+ * es RLS en la base: esto solo evita mostrar lo que la base va a rechazar.
+ */
+const ACCIONES: Record<
+  PerfilConModulos["rol"],
+  Record<string, readonly Accion[]>
+> = {
   administrador: {
     clientes: TODAS,
     oportunidades: TODAS,
@@ -17,8 +39,11 @@ const PERMISOS: Record<Rol, Record<string, readonly Accion[]>> = {
     usuarios: TODAS,
     auditoria: ["list", "show"],
     landings: TODAS,
-    // El vendedor crea etiquetas desde el cliente; la pantalla del catálogo es del administrador
     etiquetas: TODAS,
+    productos: TODAS,
+    // Sin módulo: el catálogo de canales es solo del administrador
+    canales: TODAS,
+    ventas: ["list"],
   },
   vendedor: {
     // Borrado definitivo solo del administrador; el vendedor inactiva
@@ -28,14 +53,23 @@ const PERMISOS: Record<Rol, Record<string, readonly Accion[]>> = {
     actividades: TODAS,
     // Crea, edita y publica; eliminar (borrado definitivo) es del administrador
     landings: SIN_BORRAR,
+    // Con el módulo, administra el catálogo
+    etiquetas: TODAS,
+    // Con el módulo, administra el catálogo (lo que está en uso se desactiva)
+    productos: TODAS,
+    // Solo lectura: las ganadas se editan desde el Tablero
+    ventas: ["list"],
+    auditoria: ["list", "show"],
   },
 };
 
 export const puedeAcceder = (
-  rol: Rol,
+  perfil: PerfilConModulos,
   resource: string | undefined,
   action: string,
 ): boolean => {
   if (!resource) return true;
-  return (PERMISOS[rol][resource] ?? []).includes(action as Accion);
+  const modulo = MODULO_DE_RECURSO[resource];
+  if (modulo && !tieneModulo(perfil, modulo)) return false;
+  return (ACCIONES[perfil.rol][resource] ?? []).includes(action as Accion);
 };

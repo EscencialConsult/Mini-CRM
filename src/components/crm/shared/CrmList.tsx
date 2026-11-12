@@ -62,10 +62,13 @@ export interface PestanaLista {
 
 interface CrmListProps<T extends RaRecord> {
   resource: string;
-  titulo: string;
+  /** Sin título: la página ya tiene el suyo (el listado va dentro de una sección). */
+  titulo?: string;
   sort: SortPayload;
   perPage?: number;
   filterDefaultValues?: Record<string, unknown>;
+  /** Filtro fijo que la pantalla controla desde afuera (no se guarda ni se limpia). */
+  filter?: Record<string, unknown>;
   /** Botones a la derecha del título. */
   acciones?: ReactNode;
   /** Controles de filtro junto al buscador. */
@@ -463,6 +466,7 @@ export const CrmList = <T extends RaRecord>({
   sort,
   perPage = 25,
   filterDefaultValues,
+  filter,
   acciones,
   pestanas,
   ...cuerpo
@@ -472,14 +476,21 @@ export const CrmList = <T extends RaRecord>({
     perPage={perPage}
     sort={sort}
     filterDefaultValues={filterDefaultValues}
+    filter={filter}
     disableSyncWithLocation
     storeKey={`${resource}.listParams`}
   >
-    <section className="space-y-4 py-2">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
-        {acciones && <div className="flex items-center gap-2">{acciones}</div>}
-      </header>
+    <section className={cn("space-y-4", titulo && "py-2")}>
+      {(titulo || acciones) && (
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          {titulo && (
+            <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
+          )}
+          {acciones && (
+            <div className="ml-auto flex items-center gap-2">{acciones}</div>
+          )}
+        </header>
+      )}
       <CuerpoLista<T> {...cuerpo} pestanas={pestanas} />
     </section>
   </ListBase>

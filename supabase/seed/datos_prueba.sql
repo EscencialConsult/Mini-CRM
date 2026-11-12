@@ -42,6 +42,41 @@ create function pg_temp.azar(a text[]) returns text language sql volatile as $f$
   select a[1 + floor(random() * array_length(a, 1))::int]
 $f$;
 
+-- Línea de producto de una oportunidad (precio null: el de lista; la base completa nombre y subtotal)
+create function pg_temp.linea(p_nombre text, p_precio numeric, p_cantidad numeric default 1, p_descuento numeric default 0)
+returns jsonb language sql stable as $f$
+  select jsonb_build_object('producto_id', id, 'cantidad', p_cantidad, 'precio_unitario', p_precio, 'descuento', p_descuento)
+  from public.productos where lower(nombre) = lower(p_nombre)
+$f$;
+
+-- Líneas al azar: el producto principal con su importe y, a veces, un segundo producto a precio de lista
+create function pg_temp.lineas(p_productos text[], p_importe numeric) returns jsonb language plpgsql volatile as $f$
+declare
+  v_principal text := p_productos[1 + floor(random() * array_length(p_productos, 1))::int];
+  v_otro text;
+begin
+  if random() < 0.8 then
+    return jsonb_build_array(pg_temp.linea(v_principal, p_importe));
+  end if;
+  v_otro := (select x from unnest(p_productos) x where x <> v_principal order by random() limit 1);
+  return jsonb_build_array(
+    pg_temp.linea(v_principal, p_importe, 1, case when random() < 0.5 then 10 else 0 end),
+    pg_temp.linea(v_otro, null, 1 + floor(random() * 3)::int)
+  );
+end $f$;
+
+-- Motivo de pérdida del catálogo según el detalle (mismo criterio que la migración)
+create function pg_temp.tipo_motivo(p text) returns text language sql immutable as $f$
+  select case
+    when p is null then null
+    when p ~* 'precio|presupuesto|caro' then 'precio'
+    when p ~* 'competencia' then 'competencia'
+    when p ~* 'respond|respuesta' then 'sin_respuesta'
+    when p ~* 'otra soluci' then 'otra_solucion'
+    else 'otro'
+  end
+$f$;
+
 create function pg_temp.entre(a timestamptz, b timestamptz) returns timestamptz language sql volatile as $f$
   select a + (b - a) * random()
 $f$;
@@ -168,6 +203,7 @@ declare
   v_opps bigint[];
   v_opp_alta timestamptz;
   v_res text;
+  v_motivo text;
   v_etapa text;
   v_act_tipo text;
   v_fecha timestamptz;
@@ -203,6 +239,14 @@ begin
   end if;
   v_admin := coalesce(v_admin, v_carla);
   v_vendedores := array[v_martin, v_sofia, v_diego];
+
+  -- Catálogo de productos (lo arma el administrador)
+  perform pg_temp.como(v_admin);
+  insert into public.productos (nombre, precio)
+  select p.nombre, p.precio
+    from unnest(v_productos, array[510000, 1800000, 2400000, 950000, 1200000, 800000, 650000, 1500000, 2100000, 1300000])
+         as p(nombre, precio)
+   where not exists (select 1 from public.productos x where lower(x.nombre) = lower(p.nombre));
 
   -- ==========================================================================
   -- Clientes cargados a mano, con sus oportunidades y actividades
@@ -240,7 +284,8 @@ begin
 
     perform pg_temp.como(v_actor);
     insert into public.clientes
-      (tipo, nombre, apellido, razon_social, documento, telefono, email, direccion, estado, proximo_contacto, asignado_a)
+      (tipo, nombre, apellido, razon_social, documento, telefono, email, direccion, estado, proximo_contacto, asignado_a,
+       canal_id)
     values (
       v_tipo, v_nombre, v_apellido, v_razon, v_doc,
       case when random() < 0.9 then pg_temp.telefono() end,
@@ -250,7 +295,10 @@ begin
       end,
       v_estado,
       case when v_estado = 'activo' and random() < 0.5 then v_hoy + (floor(random() * 32) - 10)::int end,
-      v_asignado
+      v_asignado,
+      case when random() < 0.85 then
+        (select id from public.canales where clave is null and activo order by random() limit 1)
+      end
     )
     returning id into v_cliente;
     insert into alta values ('clientes', v_cliente, v_alta);
@@ -274,14 +322,14 @@ begin
         when 'ganada' then pg_temp.azar(array['negociacion', 'negociacion', 'propuesta'])
         else pg_temp.azar(array['prospecto', 'calificado', 'propuesta', 'negociacion'])
       end;
+      v_motivo := case when v_res = 'perdida' then pg_temp.azar(v_motivos) end;
       insert into public.oportunidades
-        (cliente_id, producto_servicio, descripcion, importe_estimado, etapa, probabilidad, resultado,
-         fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignados)
+        (cliente_id, productos, descripcion, etapa, probabilidad, resultado,
+         fecha_cierre_estimada, fecha_cierre, motivo_perdida, motivo_perdida_tipo, asignados)
       values (
         v_cliente,
-        pg_temp.azar(v_productos),
+        pg_temp.lineas(v_productos, (round((150000 + (random() ^ 2) * 5850000) / 1000) * 1000)::numeric),
         case when random() < 0.6 then pg_temp.azar(v_desc_opp) end,
-        round((150000 + (random() ^ 2) * 5850000) / 1000) * 1000,
         v_etapa,
         case v_etapa when 'prospecto' then 10 when 'calificado' then 25 when 'propuesta' then 50 else 75 end,
         v_res,
@@ -290,7 +338,8 @@ begin
         case when v_res <> 'abierta' then
           least(v_hoy, ((v_opp_alta + (5 + random() * 55) * interval '1 day') at time zone 'America/Argentina/Buenos_Aires')::date)
         end,
-        case when v_res = 'perdida' then pg_temp.azar(v_motivos) end,
+        v_motivo,
+        pg_temp.tipo_motivo(v_motivo),
         array[v_actor]
       )
       returning id into v_id;
@@ -515,12 +564,13 @@ begin
     v_res := case when j <= 3 then 'ganada' when j = 4 then 'perdida' else 'abierta' end;
     perform pg_temp.como(coalesce(r.asignado_a, v_admin));
     insert into public.oportunidades
-      (cliente_id, producto_servicio, importe_estimado, etapa, probabilidad, resultado,
-       fecha_cierre_estimada, fecha_cierre, motivo_perdida, asignados)
+      (cliente_id, productos, etapa, probabilidad, resultado,
+       fecha_cierre_estimada, fecha_cierre, motivo_perdida, motivo_perdida_tipo, asignados)
     values (
       r.cliente_id,
-      case when r.landing_id = v_l2 then 'Selección de personal' else 'Diplomatura en RRHH' end,
-      case when r.landing_id = v_l2 then round((1200000 + random() * 1300000) / 1000) * 1000 else 510000 end,
+      jsonb_build_array(case when r.landing_id = v_l2
+        then pg_temp.linea('Selección de personal', (round((1200000 + random() * 1300000) / 1000) * 1000)::numeric)
+        else pg_temp.linea('Diplomatura en RRHH', 510000) end),
       case when v_res = 'abierta' then 'propuesta' else 'negociacion' end,
       case when v_res = 'abierta' then 50 else 75 end,
       v_res,
@@ -529,6 +579,7 @@ begin
         least(v_hoy, ((v_opp_alta + (3 + random() * 7) * interval '1 day') at time zone 'America/Argentina/Buenos_Aires')::date)
       end,
       case when v_res = 'perdida' then 'Postergó la decisión' end,
+      case when v_res = 'perdida' then 'otro' end,
       array[coalesce(r.asignado_a, v_admin)]
     )
     returning id into v_id;

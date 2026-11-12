@@ -90,7 +90,8 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   resultado: "Resultado",
   fecha_cierre_estimada: "Cierre estimado",
   fecha_cierre: "Fecha de cierre",
-  motivo_perdida: "Motivo de la pérdida",
+  motivo_perdida_tipo: "Motivo de la pérdida",
+  motivo_perdida: "Detalle de la pérdida",
   oportunidad_id: "Oportunidad",
   titulo: "Título",
   fecha: "Fecha",
@@ -101,6 +102,9 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   slug: "Dirección web",
   landing_id: "Landing de origen",
   etiquetas: "Etiquetas",
+  modulos: "Módulos",
+  productos: "Productos",
+  canal_id: "Canal",
 };
 
 /** Campos internos que no aportan al detalle de un cambio. */

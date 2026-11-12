@@ -101,3 +101,19 @@ export const moverEntreColumnas = async (
     queryClient.invalidateQueries({ queryKey: ["panel"] }),
   ]);
 };
+
+/**
+ * Una oportunidad que se cerró (ganada o perdida) sale del tablero, que solo
+ * muestra abiertas: se quita de las columnas en pantalla sin esperar al pedido.
+ */
+export const quitarDelTablero = (queryClient: QueryClient, id: Identifier) => {
+  queryClient
+    .getQueryCache()
+    .findAll({ queryKey: CLAVE_COLUMNAS })
+    .forEach(({ queryKey }) => {
+      const datos = queryClient.getQueryData<DatosColumna>(queryKey);
+      if (datos?.pages.some((pagina) => pagina.data.some((o) => o.id === id))) {
+        queryClient.setQueryData(queryKey, quitar(datos, id));
+      }
+    });
+};

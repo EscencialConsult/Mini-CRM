@@ -36,6 +36,8 @@ interface RecordFormDialogProps<T extends RaRecord> {
   /** Otros guardados (<GuardarCon>) entre Cancelar y Guardar; sin registro, es un alta. */
   guardadosExtra?: (registro: T | undefined) => ReactNode;
   size?: "md" | "lg" | "xl";
+  /** Texto del botón de guardar (por defecto, "Guardar"). */
+  submitLabel?: string;
   onClose: () => void;
   /** Se llama al guardar; por defecto, cierra el modal. */
   onSaved?: (registro: T) => void;
@@ -52,6 +54,7 @@ const Contenido = <T extends RaRecord>({
   acciones,
   guardadosExtra,
   size,
+  submitLabel,
   onClose,
   children,
 }: Omit<
@@ -75,6 +78,7 @@ const Contenido = <T extends RaRecord>({
     >
       <RecordForm
         defaultValues={defaultValues}
+        submitLabel={submitLabel}
         onCancel={onClose}
         footerActions={editando && registro ? acciones?.(registro) : undefined}
         extraSaves={guardadosExtra?.(editando ? registro : undefined)}

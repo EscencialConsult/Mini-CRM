@@ -4,6 +4,7 @@ import type {
   EntidadAuditoria,
   EstadoCliente,
   Etapa,
+  MotivoPerdida,
   Resultado,
   Rol,
   TipoActividad,
@@ -54,6 +55,14 @@ export const RESULTADOS: Opcion<Resultado>[] = [
   { id: "abierta", name: "Abierta" },
   { id: "ganada", name: "Ganada" },
   { id: "perdida", name: "Perdida" },
+];
+
+export const MOTIVOS_PERDIDA: Opcion<MotivoPerdida>[] = [
+  { id: "precio", name: "Precio" },
+  { id: "competencia", name: "Competencia" },
+  { id: "sin_respuesta", name: "Sin respuesta" },
+  { id: "otra_solucion", name: "Eligió otra solución" },
+  { id: "otro", name: "Otro" },
 ];
 
 export const TIPOS_ACTIVIDAD: Opcion<TipoActividad>[] = [

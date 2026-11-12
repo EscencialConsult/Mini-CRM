@@ -6,6 +6,7 @@ import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect, FiltroSoloEmpresas } from "../shared/ListControls";
 import {
   AccionesOportunidades,
+  FiltroCanal,
   FiltroResponsable,
 } from "./ControlesOportunidades";
 import {
@@ -72,6 +73,13 @@ const columnas: ColumnaLista<Oportunidad>[] = [
           : "—",
   },
   {
+    id: "canal",
+    encabezado: "Canal",
+    orden: "canal_nombre",
+    etiquetaTarjeta: "Canal",
+    celda: (oportunidad) => oportunidad.canal_nombre ?? "—",
+  },
+  {
     id: "responsable",
     encabezado: "Responsables",
     orden: "asignado_nombre",
@@ -97,6 +105,7 @@ export const OportunidadList = () => (
         />
         <FilterSelect source="etapa" etiqueta="Etapa" opciones={ETAPAS} />
         <FiltroResponsable />
+        <FiltroCanal />
         <FiltroSoloEmpresas />
       </>
     }

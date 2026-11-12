@@ -1,6 +1,7 @@
 import { useGetIdentity, type AuthProvider, type UserIdentity } from "ra-core";
 import { supabaseAuthProvider } from "ra-supabase-core";
 
+import { tieneModulo, type Modulo } from "../domain/modulos";
 import type { Rol, Usuario } from "../domain/types";
 import { puedeAcceder } from "./permissions";
 import { getSupabaseClient } from "./supabase";
@@ -10,6 +11,7 @@ export interface CrmIdentity extends UserIdentity {
   fullName: string;
   email: string;
   rol: Rol;
+  modulos: Modulo[];
 }
 
 // El perfil se vuelve a consultar cada minuto: un cambio de rol o una baja
@@ -25,7 +27,7 @@ const leerPerfil = async (): Promise<Usuario | undefined> => {
 
   const { data } = await client
     .from("usuarios")
-    .select("id, nombre, apellido, email, rol, activo, creado_en")
+    .select("id, nombre, apellido, email, rol, activo, modulos, creado_en")
     .eq("id", userId)
     .maybeSingle<Usuario>();
   if (data) perfilEnCache = { perfil: data, leidoEn: Date.now() };
@@ -55,6 +57,7 @@ export const getAuthProvider = (): AuthProvider => {
         fullName: `${perfil.nombre} ${perfil.apellido}`.trim(),
         email: perfil.email,
         rol: perfil.rol,
+        modulos: perfil.modulos,
       };
     },
   });
@@ -81,15 +84,30 @@ export const getAuthProvider = (): AuthProvider => {
     canAccess: async ({ resource, action }) => {
       const perfil = await getPerfil();
       if (!perfil || !perfil.activo) return false;
-      return puedeAcceder(perfil.rol, resource, action);
+      return puedeAcceder(perfil, resource, action);
     },
   };
 };
 
+// Al ritmo del perfil: un módulo quitado desaparece del menú en un par de minutos
+const OPCIONES_IDENTIDAD = {
+  staleTime: PERFIL_TTL_MS,
+  refetchInterval: PERFIL_TTL_MS,
+};
+
 export const useCrmIdentity = () => {
-  const { data, isPending } = useGetIdentity();
+  const { data, isPending } = useGetIdentity(OPCIONES_IDENTIDAD);
   return { identity: data as CrmIdentity | undefined, isPending };
 };
 
 export const useEsAdministrador = (): boolean =>
   useCrmIdentity().identity?.rol === "administrador";
+
+/**
+ * `tiene("clientes")`: si el usuario tiene ese módulo. Mientras carga la
+ * identidad responde que no, así nada aparece y después desaparece.
+ */
+export const useModulos = () => {
+  const { identity } = useCrmIdentity();
+  return { tiene: (modulo: Modulo) => tieneModulo(identity, modulo) };
+};

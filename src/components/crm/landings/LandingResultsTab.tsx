@@ -15,6 +15,7 @@ import {
   formatPorcentaje,
 } from "../domain/format";
 import type { Landing, LandingEstadisticas } from "../domain/types";
+import { useModulos } from "../providers/authProvider";
 import type { CrmDataProvider } from "../providers/dataProvider";
 import { landingLeadsPath } from "./landingUrls";
 
@@ -156,6 +157,8 @@ const Breakdown = ({
 
 export const LandingResultsTab = ({ landing }: { landing: Landing }) => {
   const translate = useTranslate();
+  // Sin el módulo Clientes el nombre no lleva a la ficha (no podría abrirla)
+  const conClientes = useModulos().tiene("clientes");
   const t = (key: string, options?: object) =>
     translate(`resources.landings.editor.results.${key}`, options);
   const dataProvider = useDataProvider<CrmDataProvider>();
@@ -309,7 +312,7 @@ export const LandingResultsTab = ({ landing }: { landing: Landing }) => {
                 key={`${envio.creado_en}-${envio.cliente_id ?? "x"}`}
                 className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-sm"
               >
-                {envio.cliente_id != null ? (
+                {envio.cliente_id != null && conClientes ? (
                   <Link
                     to={`/clientes/${envio.cliente_id}`}
                     className="min-w-0 flex-1 truncate font-medium text-primary hover:underline"
@@ -318,7 +321,7 @@ export const LandingResultsTab = ({ landing }: { landing: Landing }) => {
                   </Link>
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    {t("no_name")}
+                    {envio.cliente_nombre ?? t("no_name")}
                   </span>
                 )}
                 {envio.cliente_nuevo && (

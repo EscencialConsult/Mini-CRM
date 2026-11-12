@@ -50,6 +50,11 @@ interface ResourceConfig {
   variosResponsables?: boolean;
   /** Columnas que son listas: el filtro `columna: valor` busca ese valor en la lista. */
   listas?: readonly string[];
+  /**
+   * Líneas de productos (columna `productos`): el filtro `producto_id: 3`
+   * busca las que tienen ese producto.
+   */
+  lineasProductos?: boolean;
 }
 
 const RESOURCES: Record<string, ResourceConfig> = {
@@ -69,33 +74,62 @@ const RESOURCES: Record<string, ResourceConfig> = {
       "proximo_contacto",
       "asignado_a",
       "etiquetas",
+      "canal_id",
     ],
     busqueda: "sin_tildes",
     listas: ["etiquetas"],
   },
-  // Cualquiera crea; renombrar, cambiar el color y borrar es del administrador (RLS)
+  // Cualquiera crea; renombrar, cambiar el color y borrar es de quien tiene el módulo (RLS)
   etiquetas: {
     table: "etiquetas",
     view: "etiquetas_resumen",
     writable: ["nombre", "color"],
   },
+  // Catálogo del módulo Productos; un producto en uso no se borra, se desactiva
+  productos: {
+    table: "productos",
+    view: "productos_resumen",
+    writable: ["nombre", "descripcion", "precio", "activo"],
+    busqueda: "sin_tildes",
+  },
+  // Solo el administrador (RLS); el canal del sistema (Landing) no se borra
+  canales: {
+    table: "canales",
+    view: "canales_resumen",
+    writable: ["nombre", "activo"],
+  },
+  // Título (`producto_servicio`) e importe salen de las líneas: los calcula la base
   oportunidades: {
     table: "oportunidades",
     view: "oportunidades_resumen",
     writable: [
       "cliente_id",
-      "producto_servicio",
+      "productos",
+      "canal_id",
       "descripcion",
-      "importe_estimado",
       "etapa",
       "probabilidad",
       "resultado",
       "fecha_cierre_estimada",
+      // Al cerrar se elige; vacía, la base pone hoy (y la borra si se reabre)
+      "fecha_cierre",
+      "motivo_perdida_tipo",
       "motivo_perdida",
       "asignados",
     ],
     busqueda: "sin_tildes",
     variosResponsables: true,
+    lineasProductos: true,
+  },
+  // Módulo Ventas: las mismas oportunidades, solo lectura (la base muestra las
+  // cerradas a quien tiene el módulo aunque no tenga Tablero)
+  ventas: {
+    table: "oportunidades",
+    view: "oportunidades_resumen",
+    writable: [],
+    busqueda: "sin_tildes",
+    variosResponsables: true,
+    lineasProductos: true,
   },
   actividades: {
     table: "actividades",
@@ -143,6 +177,8 @@ export class LandingNoLista extends Error {
 const MENSAJE_DOCUMENTO_DUPLICADO = "Ya existe un cliente con ese documento";
 const MENSAJE_SIN_PERMISO = "No tenés permiso para realizar esta acción";
 const MENSAJE_ETIQUETA_DUPLICADA = "Ya existe una etiqueta con ese nombre";
+const MENSAJE_PRODUCTO_DUPLICADO = "Ya existe un producto con ese nombre";
+const MENSAJE_CANAL_DUPLICADO = "Ya existe un canal con ese nombre";
 
 interface PostgrestErrorBody {
   code?: string;
@@ -167,6 +203,18 @@ const traducirError = (error: unknown): unknown => {
       errors: { nombre: MENSAJE_ETIQUETA_DUPLICADA },
     });
   }
+  if (body.code === "23505" && texto.includes("productos_nombre_key")) {
+    return new HttpError(MENSAJE_PRODUCTO_DUPLICADO, 409, {
+      ...body,
+      errors: { nombre: MENSAJE_PRODUCTO_DUPLICADO },
+    });
+  }
+  if (body.code === "23505" && texto.includes("canales_nombre_key")) {
+    return new HttpError(MENSAJE_CANAL_DUPLICADO, 409, {
+      ...body,
+      errors: { nombre: MENSAJE_CANAL_DUPLICADO },
+    });
+  }
   if (body.code === "23505" && texto.includes("clientes_documento_key")) {
     return new HttpError(MENSAJE_DOCUMENTO_DUPLICADO, 409, {
       ...body,
@@ -181,6 +229,14 @@ const traducirError = (error: unknown): unknown => {
   }
   if (body.code === "42501") {
     return new HttpError(body.message || MENSAJE_SIN_PERMISO, 403, body);
+  }
+  // Reglas de la base con mensaje propio (producto en uso, inactivo…)
+  if (
+    (body.code === "23503" || body.code === "23514") &&
+    body.message &&
+    !texto.includes("constraint")
+  ) {
+    return new HttpError(body.message, 409, body);
   }
   if (body.code === "23503") {
     return new HttpError(
@@ -239,6 +295,19 @@ const aFiltroListas = (
   );
 };
 
+/** `producto_id: 3` → `productos@cs: [{"producto_id":3}]` (alguna línea con ese producto). */
+const aFiltroProducto = (
+  resource: string,
+  filter: Record<string, unknown>,
+): Record<string, unknown> => {
+  const { producto_id: producto, ...resto } = filter;
+  if (!RESOURCES[resource]?.lineasProductos) return filter;
+  const id = Number(producto);
+  return producto !== undefined && producto !== "" && Number.isInteger(id)
+    ? { ...resto, "productos@cs": JSON.stringify([{ producto_id: id }]) }
+    : resto;
+};
+
 /**
  * Traduce el filtro `q` a `busqueda@ilike` (cada palabra debe aparecer) y el de
  * responsable a la lista de responsables, donde corresponde.
@@ -247,9 +316,9 @@ const aFiltroApi = (
   resource: string,
   filter: Record<string, unknown> | undefined,
 ): Record<string, unknown> => {
-  const { q, ...resto } = aFiltroListas(
+  const { q, ...resto } = aFiltroProducto(
     resource,
-    aFiltroResponsables(resource, filter),
+    aFiltroListas(resource, aFiltroResponsables(resource, filter)),
   );
   const modo = RESOURCES[resource]?.busqueda;
   if (typeof q !== "string" || !modo) return resto;

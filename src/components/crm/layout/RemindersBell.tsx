@@ -30,7 +30,7 @@ const inicioDeDia = (desfase: number): string => {
 /** Campana de recordatorios de seguimiento: tareas y contactos vencidos o de hoy. */
 export const RemindersBell = () => {
   const { identity } = useCrmIdentity();
-  const { conteo, total } = useRecordatorios();
+  const { conteo, total, conTareas, conContactos } = useRecordatorios();
   const irA = useIrAListado();
   const [abierto, setAbierto] = useState(false);
 
@@ -40,6 +40,9 @@ export const RemindersBell = () => {
     accion();
   };
 
+  if (!conTareas && !conContactos) return null;
+
+  // Sin el módulo, su conteo ya viene en cero y no se lista
   const recordatorios: Recordatorio[] = [
     {
       id: "actividades_vencidas",

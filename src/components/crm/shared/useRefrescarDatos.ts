@@ -2,11 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 // Datos que dependen entre sí (contadores de la ficha del cliente, panel,
-// recordatorios): se invalidan juntos y solo se vuelven a pedir los que están en pantalla.
+// recordatorios, uso de productos y canales): se invalidan juntos y solo se
+// vuelven a pedir los que están en pantalla.
 const CLAVES_DERIVADAS = [
   "clientes",
   "oportunidades",
   "actividades",
+  "productos",
+  "canales",
+  "ventas",
   "panel",
   "recordatorios",
 ] as const;

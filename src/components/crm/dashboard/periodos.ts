@@ -1,6 +1,7 @@
 import { aIsoFecha } from "../domain/format";
 
-export type PeriodoId = "mes_actual" | "mes_anterior" | "ultimos_30" | "anio";
+export type PeriodoId =
+  "mes_actual" | "mes_anterior" | "ultimos_30" | "anio" | "ultimos_12";
 
 export interface Periodo {
   id: PeriodoId;
@@ -39,6 +40,11 @@ export const rangoDePeriodo = (
       };
     case "anio":
       return { desde: aIsoFecha(new Date(anio, 0, 1)), hasta: aIsoFecha(hoy) };
+    case "ultimos_12":
+      return {
+        desde: aIsoFecha(new Date(anio - 1, mes, hoy.getDate() + 1)),
+        hasta: aIsoFecha(hoy),
+      };
     case "mes_actual":
     default:
       return {

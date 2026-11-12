@@ -9,6 +9,7 @@ import { TextInput } from "@/components/admin/text-input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { MODULOS_POR_DEFECTO, type Modulo } from "../domain/modulos";
 import { ROLES } from "../domain/options";
 import type {
   CambiosUsuario,
@@ -25,6 +26,7 @@ import { invalidarPerfil, useCrmIdentity } from "../providers/authProvider";
 import { useCrmDataProvider } from "../providers/dataProvider";
 import { RecordDialog } from "../shared/RecordDialog";
 import { useRefrescarDatos } from "../shared/useRefrescarDatos";
+import { ModulosInput } from "./ModulosInput";
 
 interface UsuarioFormDialogProps {
   /** Con id edita; sin id crea. */
@@ -39,6 +41,7 @@ interface ValoresUsuario {
   rol: Rol;
   activo: boolean;
   password?: string;
+  modulos?: Modulo[];
 }
 
 const ALFABETO_CLAVE =
@@ -107,6 +110,7 @@ const Campos = ({
         />
       )}
     </div>
+    <ModulosInput />
     <div className="space-y-2">
       {/* Visible a propósito: el administrador se la comunica al usuario */}
       <TextInput
@@ -149,6 +153,7 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
           nombre: valores.nombre,
           apellido: valores.apellido,
           rol: valores.rol,
+          modulos: valores.modulos ?? MODULOS_POR_DEFECTO,
         };
         return dataProvider.crearUsuario(nuevo);
       }
@@ -158,6 +163,7 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
         apellido: valores.apellido,
         rol: valores.rol,
         activo: valores.activo,
+        ...(valores.modulos ? { modulos: valores.modulos } : {}),
         ...(valores.password ? { password: valores.password } : {}),
       };
       return dataProvider.actualizarUsuario(cambios);
@@ -195,7 +201,7 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
       }
       description={
         editando
-          ? "Datos de acceso, rol y estado de la cuenta."
+          ? "Datos de acceso, rol, módulos y estado de la cuenta."
           : "Crea el acceso al CRM: el usuario entra con su email y la contraseña inicial."
       }
       size="md"
@@ -205,7 +211,11 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
         mode="onBlur"
         reValidateMode="onChange"
         record={usuario}
-        defaultValues={editando ? undefined : { rol: "vendedor", activo: true }}
+        defaultValues={
+          editando
+            ? undefined
+            : { rol: "vendedor", activo: true, modulos: MODULOS_POR_DEFECTO }
+        }
         // Espera la respuesta: el botón queda en carga hasta que termina
         onSubmit={async (valores: FieldValues) => {
           await guardar

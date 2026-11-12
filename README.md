@@ -6,8 +6,11 @@ Versión reducida del CRM Escencial, con el mismo diseño y stack: **React 19 + 
 
 | Módulo | Qué incluye |
 |---|---|
-| **Clientes** | Alta, edición y baja. Persona (nombre y apellido) o empresa (razón social). CUIT/DNI validado (dígito verificador del CUIT), teléfono, email, dirección, estado activo/inactivo, vendedor asignado, próximo contacto y **etiquetas** de colores (se crean escribiéndolas; filtro y búsqueda por etiqueta). La ficha abre con un resumen (vendedor, próximo contacto, etiquetas) y accesos para llamar, escribir por WhatsApp o mandar un email. |
-| **Tablero** (oportunidades) | Producto o servicio de interés, importe estimado, etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa), uno o varios responsables y resultado ganada/perdida con motivo. Se ven en un **Tablero** (una columna por etapa con las abiertas; arrastrar una tarjeta le cambia la etapa) o en el **Listado** con todas; ambos con el filtro **Solo empresas**. |
+| **Clientes** | Alta, edición y baja. Persona (nombre y apellido) o empresa (razón social). CUIT/DNI validado (dígito verificador del CUIT), teléfono, email, dirección, estado activo/inactivo, vendedor asignado, próximo contacto, **canal de origen** (quien llega por una landing queda con «Landing») y **etiquetas** de colores (se crean escribiéndolas; filtro y búsqueda por etiqueta). La ficha abre con un resumen (vendedor, próximo contacto, etiquetas) y accesos para llamar, escribir por WhatsApp o mandar un email. |
+| **Tablero** (oportunidades) | Uno o varios **productos del catálogo** (cantidad, precio unitario —por defecto, el de lista— y descuento %): el importe es la suma de los subtotales y el título se arma solo («A», «A y B», «A y 2 más»). **Canal** de venta (por defecto, el de origen del cliente), etapa de negociación (Prospecto → Calificado → Propuesta → Negociación), probabilidad de cierre (se sugiere por etapa), uno o varios responsables y resultado ganada/perdida con motivo. Se ven en un **Tablero** (una columna por etapa con las abiertas; arrastrar una tarjeta le cambia la etapa) o en el **Listado** con todas; ambos con filtros por responsable, **canal** y **Solo empresas**. Para cerrar una oportunidad se la arrastra a las zonas **Ganada** / **Perdida** que aparecen abajo (o se usa el menú ⋯ de la tarjeta): ganada confirma productos, importe final y fecha; perdida pide el **motivo** (Precio, Competencia, Sin respuesta, Eligió otra solución, Otro) y un detalle opcional. |
+| **Ventas** | **Reportes** (total vendido, cantidad, ticket promedio, ciclo promedio, tasa de cierre, ventas por canal, ranking de vendedores, productos más vendidos y motivos de pérdida) y **listado de ganadas** con exportación a CSV; filtros por período de cierre, vendedor, canal y producto. Con varios responsables, cada uno suma la venta completa en el ranking. |
+| **Productos** | Catálogo con nombre, descripción y precio de lista. Un producto en uso no se borra: se **desactiva** (deja de ofrecerse; las oportunidades que lo tienen lo conservan). |
+| **Canales** | Catálogo de canales de venta (WhatsApp, Instagram, Referido, Landing…), solo del administrador. «Landing» es del sistema y no se borra; uno en uso se desactiva. |
 | **Tareas** | Llamadas, reuniones, notas y otras tareas; se registran como realizadas o se programan. Uno o varios **responsables** (todos iguales: cualquiera la completa para todos), vencimiento y vínculo opcional a una oportunidad del cliente. Pestañas **Pendientes** (la que vence antes, primero), **Completadas** (la última, primero) y **Todas**; búsqueda y filtros (incluido **Solo empresas**) se aplican dentro de cada una. Cada fila tiene **Completar** / **Reabrir**; las casillas seleccionan varias para **completarlas, reabrirlas, reprogramarlas** (mañana, en una semana u otro día, cada una a su hora), cambiarles los **responsables** (agregar o quitar a alguien, o reemplazarlos) o **eliminarlas** juntas. En la base y en el código el recurso sigue siendo `actividades`. |
 | **Panel de control** | Total y nuevos clientes, oportunidades abiertas (importe y ponderado), ventas ganadas y perdidas del período, tareas pendientes, resumen de ventas por mes, embudo por etapa y seguimiento propio o de todo el equipo. |
 | **Usuarios y permisos** | Inicio de sesión, roles administrador y vendedor, alta de usuarios por el administrador, asignación de clientes, perfil propio y **auditoría** de quién hizo cada acción. |
@@ -16,6 +19,8 @@ Versión reducida del CRM Escencial, con el mismo diseño y stack: **React 19 + 
 Recordatorios de seguimiento: campana en el menú y bloque “Seguimiento” del panel (tareas y contactos vencidos o de hoy). Solo dentro de la app.
 
 ## Permisos
+
+**Módulos por usuario.** El administrador elige en cada usuario qué módulos usa: Panel, Clientes, Tablero, Tareas, Productos, Ventas, Landings, Etiquetas y Auditoría (Usuarios y Canales son siempre solo del administrador, que tiene todos). Sin el módulo no aparece en el menú, la ruta escrita a mano lleva a "Acceso denegado" y la base rechaza sus datos (`tiene_modulo()` en las políticas RLS). Con Tablero o Tareas sin Clientes se ven y eligen clientes, pero no se editan; con Tablero sin Productos se eligen productos, pero no se edita el catálogo; con Ventas sin Tablero se ven las oportunidades cerradas (no las abiertas) y no se editan. Por defecto un usuario nuevo tiene Panel, Clientes, Tablero y Tareas. La tabla de abajo aplica dentro de los módulos que el usuario tiene.
 
 | Acción | Administrador | Vendedor |
 |---|---|---|
@@ -26,11 +31,14 @@ Recordatorios de seguimiento: campana en el menú y bloque “Seguimiento” del
 | Eliminar cliente u oportunidad (borrado definitivo, con advertencia) | Sí | No |
 | Eliminar una tarea | Cualquiera | Solo las que creó |
 | Gestionar usuarios (alta, rol, desactivar, restablecer clave) | Sí | No |
-| Ver auditoría e historial por cliente | Sí | No |
+| Ver auditoría e historial por cliente | Sí | Con el módulo Auditoría |
 | Crear etiquetas y ponérselas a los clientes | Sí | Sí |
-| Renombrar, cambiar el color o borrar etiquetas (pantalla Etiquetas) | Sí | No |
+| Renombrar, cambiar el color o borrar etiquetas (pantalla Etiquetas, con edición rápida en el lugar) | Sí | Con el módulo Etiquetas |
 | Crear, editar, publicar y despublicar landings | Sí | Sí |
 | Eliminar una landing (borrado definitivo; antes hay que despublicarla) | Sí | No |
+| Crear, editar, desactivar y borrar productos (sin uso) | Sí | Con el módulo Productos |
+| Gestionar canales de venta | Sí | No |
+| Ver ventas, reportes y ranking de todo el equipo | Sí | Con el módulo Ventas |
 
 Los permisos se aplican en la base (RLS + triggers); la interfaz solo oculta lo que la base rechazaría.
 
@@ -98,7 +106,8 @@ src/components/
     domain/             Tipos, opciones, formato (ARS, fechas) y validadores (CUIT/DNI)
     providers/          Data provider (Supabase), auth, permisos e i18n (español)
     shared/             Listado responsivo, modal de registro, formularios, borrado, errores globales
-    clientes/ oportunidades/ actividades/ dashboard/ usuarios/ auditoria/
+    clientes/ oportunidades/ actividades/ productos/ canales/ etiquetas/ ventas/
+    dashboard/ usuarios/ auditoria/
     landings/           Editor, listado y resultados; pagina/ arma el HTML público (también lo usa Netlify)
     layout/ login/ root/
 supabase/
@@ -118,7 +127,8 @@ npm run typecheck && npm run lint && npm run build
 
 ## Pendiente / extensiones posibles
 
-- Desplegar la Edge Function `users` y cerrar el registro público (necesita el token).
+- **Desplegar productos, canales, cierre desde el tablero y Ventas** (código listo; migraciones en `supabase/pendientes/`). Pasos en [`ROADMAP.md`](ROADMAP.md).
+- Tiempo en cada etapa (requiere un historial de etapas).
 - Publicar el sitio en Netlify con el alias de dominio de las landings y `VITE_LANDINGS_URL`.
 - Recordatorios por email (requiere proveedor de envío y una tarea programada).
 - Importación/exportación CSV y reasignación masiva de clientes.

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatMoneda } from "../../domain/format";
 import type { EtapaOpcion } from "../../domain/options";
 import type { Oportunidad } from "../../domain/types";
+import type { Cierre } from "./cierre";
 import { aplicarMovimientos, type MovimientoPendiente } from "./movimientos";
 import { TableroTarjeta } from "./TableroTarjeta";
 
@@ -25,6 +26,8 @@ interface TableroColumnaProps {
   /** Oportunidades cuyo cambio de etapa se está guardando. */
   enMovimiento: ReadonlySet<Identifier>;
   alCargar: (oportunidades: Oportunidad[]) => void;
+  /** Cerrar desde el menú de la tarjeta; sin él (no puede editar), no hay menú. */
+  alCerrar?: (oportunidad: Oportunidad, resultado: Cierre) => void;
 }
 
 /** Una etapa: sus oportunidades abiertas, de a 20, y su total. */
@@ -35,6 +38,7 @@ export const TableroColumna = ({
   arrastreDeshabilitado,
   enMovimiento,
   alCargar,
+  alCerrar,
 }: TableroColumnaProps) => {
   const {
     data,
@@ -135,6 +139,7 @@ export const TableroColumna = ({
                   indice={indice}
                   arrastreDeshabilitado={arrastreDeshabilitado}
                   guardando={enMovimiento.has(oportunidad.id)}
+                  alCerrar={alCerrar}
                 />
               ))
             )}

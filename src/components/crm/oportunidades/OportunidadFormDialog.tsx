@@ -2,6 +2,7 @@ import { useCrmIdentity, useEsAdministrador } from "../providers/authProvider";
 import type { Oportunidad } from "../domain/types";
 import { DeleteRecordButton } from "../shared/DeleteRecordButton";
 import { RecordFormDialog } from "../shared/RecordFormDialog";
+import { LINEA_VACIA } from "./lineasProductos";
 import { OportunidadInputs } from "./OportunidadInputs";
 
 interface OportunidadFormDialogProps {
@@ -30,14 +31,14 @@ export const OportunidadFormDialog = ({
       size="lg"
       tituloCrear="Nueva oportunidad"
       tituloEditar={(oportunidad) => oportunidad.producto_servicio}
-      descripcion="Posible venta: producto o servicio, importe y etapa de negociación."
+      descripcion="Posible venta: productos, etapa de negociación y responsables. El importe es la suma de los productos."
       mensajeGuardado="Oportunidad guardada"
       defaultValues={{
         cliente_id: clienteId,
         etapa: "prospecto",
         probabilidad: 10,
         resultado: "abierta",
-        importe_estimado: 0,
+        productos: [{ ...LINEA_VACIA }],
         asignados: identity ? [identity.id] : [],
       }}
       acciones={(oportunidad) =>

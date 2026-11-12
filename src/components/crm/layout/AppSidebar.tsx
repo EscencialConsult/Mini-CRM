@@ -1,8 +1,11 @@
 import {
   Columns3,
   Globe,
+  HandCoins,
   Home,
   ListChecks,
+  Megaphone,
+  Package,
   ScrollText,
   Tags,
   User,
@@ -10,7 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useCanAccess, useUserMenu } from "ra-core";
+import { useUserMenu } from "ra-core";
 import { useState } from "react";
 import { Link, matchPath, useLocation } from "react-router";
 
@@ -35,14 +38,21 @@ import {
 import logoClaro from "@/assets/logo_atomic_crm_light.svg";
 import logoOscuro from "@/assets/logo_atomic_crm_dark.svg";
 
+import type { Modulo } from "../domain/modulos";
 import { nombreDe, ROLES } from "../domain/options";
-import { useCrmIdentity } from "../providers/authProvider";
+import {
+  useCrmIdentity,
+  useEsAdministrador,
+  useModulos,
+} from "../providers/authProvider";
 import { APP_TITLE } from "../root/config";
 import { PerfilDialog } from "./PerfilDialog";
 import { RemindersBell } from "./RemindersBell";
 import { useRecordatorios } from "./useRecordatorios";
 
 interface ItemNavegacion {
+  /** Sin módulo: solo el administrador (Usuarios, Canales). */
+  modulo?: Modulo;
   to: string;
   etiqueta: string;
   Icono: LucideIcon;
@@ -73,81 +83,97 @@ export const AppSidebar = () => {
   const { conteo } = useRecordatorios();
   const { toggleSidebar } = useSidebar();
   const [perfilAbierto, setPerfilAbierto] = useState(false);
-  const { canAccess: puedeVerUsuarios } = useCanAccess({
-    resource: "usuarios",
-    action: "list",
-  });
-  const { canAccess: puedeVerEtiquetas } = useCanAccess({
-    resource: "etiquetas",
-    action: "list",
-  });
-  const { canAccess: puedeVerAuditoria } = useCanAccess({
-    resource: "auditoria",
-    action: "list",
-  });
+  const { tiene } = useModulos();
+  const esAdministrador = useEsAdministrador();
+  const visible = (item: ItemNavegacion) =>
+    item.modulo ? tiene(item.modulo) : esAdministrador;
 
   const estaEn = (ruta: string) => !!matchPath(`${ruta}/*`, pathname);
 
-  const principales: ItemNavegacion[] = [
-    { to: "/", etiqueta: "Panel", Icono: Home, activo: pathname === "/" },
-    {
-      to: "/clientes",
-      etiqueta: "Clientes",
-      Icono: Users,
-      activo: estaEn("/clientes"),
-    },
-    {
-      to: "/oportunidades",
-      etiqueta: "Tablero",
-      Icono: Columns3,
-      activo: estaEn("/oportunidades"),
-    },
-    {
-      to: "/actividades",
-      etiqueta: "Tareas",
-      Icono: ListChecks,
-      activo: estaEn("/actividades"),
-      aviso: conteo.actividades_vencidas,
-    },
-    {
-      to: "/landings",
-      etiqueta: "Landings",
-      Icono: Globe,
-      activo: estaEn("/landings"),
-    },
-  ];
-  const administracion: ItemNavegacion[] = [
-    ...(puedeVerUsuarios
-      ? [
-          {
-            to: "/usuarios",
-            etiqueta: "Usuarios",
-            Icono: UserCog,
-            activo: estaEn("/usuarios"),
-          },
-        ]
-      : []),
-    ...(puedeVerEtiquetas
-      ? [
-          {
-            to: "/etiquetas",
-            etiqueta: "Etiquetas",
-            Icono: Tags,
-            activo: estaEn("/etiquetas"),
-          },
-        ]
-      : []),
-    ...(puedeVerAuditoria
-      ? [
-          {
-            to: "/auditoria",
-            etiqueta: "Auditoría",
-            Icono: ScrollText,
-            activo: estaEn("/auditoria"),
-          },
-        ]
-      : []),
-  ];
+  const principales = (
+    [
+      {
+        modulo: "panel",
+        to: "/",
+        etiqueta: "Panel",
+        Icono: Home,
+        activo: pathname === "/",
+      },
+      {
+        modulo: "clientes",
+        to: "/clientes",
+        etiqueta: "Clientes",
+        Icono: Users,
+        activo: estaEn("/clientes"),
+      },
+      {
+        modulo: "oportunidades",
+        to: "/oportunidades",
+        etiqueta: "Tablero",
+        Icono: Columns3,
+        activo: estaEn("/oportunidades"),
+      },
+      {
+        modulo: "ventas",
+        to: "/ventas",
+        etiqueta: "Ventas",
+        Icono: HandCoins,
+        activo: estaEn("/ventas"),
+      },
+      {
+        modulo: "actividades",
+        to: "/actividades",
+        etiqueta: "Tareas",
+        Icono: ListChecks,
+        activo: estaEn("/actividades"),
+        aviso: conteo.actividades_vencidas,
+      },
+      {
+        modulo: "landings",
+        to: "/landings",
+        etiqueta: "Landings",
+        Icono: Globe,
+        activo: estaEn("/landings"),
+      },
+    ] satisfies ItemNavegacion[]
+  ).filter(visible);
+  const administracion = (
+    [
+      {
+        to: "/usuarios",
+        etiqueta: "Usuarios",
+        Icono: UserCog,
+        activo: estaEn("/usuarios"),
+      },
+      {
+        modulo: "productos",
+        to: "/productos",
+        etiqueta: "Productos",
+        Icono: Package,
+        activo: estaEn("/productos"),
+      },
+      {
+        to: "/canales",
+        etiqueta: "Canales",
+        Icono: Megaphone,
+        activo: estaEn("/canales"),
+      },
+      {
+        modulo: "etiquetas",
+        to: "/etiquetas",
+        etiqueta: "Etiquetas",
+        Icono: Tags,
+        activo: estaEn("/etiquetas"),
+      },
+      {
+        modulo: "auditoria",
+        to: "/auditoria",
+        etiqueta: "Auditoría",
+        Icono: ScrollText,
+        activo: estaEn("/auditoria"),
+      },
+    ] satisfies ItemNavegacion[]
+  ).filter(visible);
 
   const logo = (
     <>

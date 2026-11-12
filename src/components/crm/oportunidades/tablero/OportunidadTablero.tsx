@@ -1,4 +1,8 @@
-import { DragDropContext, type OnDragEndResponder } from "@hello-pangea/dnd";
+import {
+  DragDropContext,
+  type OnBeforeCaptureResponder,
+  type OnDragEndResponder,
+} from "@hello-pangea/dnd";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ListBase,
@@ -15,6 +19,7 @@ import { BarraFiltros } from "../../shared/CrmList";
 import { FiltroSoloEmpresas } from "../../shared/ListControls";
 import {
   AccionesOportunidades,
+  FiltroCanal,
   FiltroResponsable,
 } from "../ControlesOportunidades";
 import {
@@ -22,9 +27,17 @@ import {
   CLAVE_FILTROS_OPORTUNIDADES,
   FILTROS_INICIALES_OPORTUNIDADES,
 } from "../vistaOportunidades";
-import { moverEntreColumnas } from "./columnasEnCache";
+import { CerrarOportunidadDialog } from "./CerrarOportunidadDialog";
+import { cierreDeZona, type Cierre } from "./cierre";
+import { moverEntreColumnas, quitarDelTablero } from "./columnasEnCache";
 import { esEtapa, type MovimientoPendiente } from "./movimientos";
 import { TableroColumna } from "./TableroColumna";
+import { ZonasCierre } from "./ZonasCierre";
+
+interface CierrePendiente {
+  oportunidad: Oportunidad;
+  resultado: Cierre;
+}
 
 /** Filtros del listado que el tablero no usa: las columnas ya son las etapas y solo hay abiertas. */
 const FILTROS_DEL_LISTADO: readonly string[] = ["etapa", "resultado"];
@@ -41,7 +54,9 @@ const filtroDelTablero = (filtros: Record<string, unknown>) => ({
 /**
  * Una columna por etapa. Soltar una tarjeta en otra columna le cambia la etapa
  * (y la probabilidad sugerida): se mueve al instante y, si no se puede
- * guardar, vuelve a su lugar con un aviso.
+ * guardar, vuelve a su lugar con un aviso. Mientras se arrastra aparecen
+ * abajo las zonas Ganada y Perdida: soltarla ahí (o elegirlo en el menú de la
+ * tarjeta) abre el diálogo de cierre, y al confirmar sale del tablero.
  */
 const Tablero = () => {
   const { filterValues } = useListContext();
@@ -54,6 +69,15 @@ const Tablero = () => {
     action: "edit",
   });
   const [pendientes, setPendientes] = useState<MovimientoPendiente[]>([]);
+  const [arrastrando, setArrastrando] = useState(false);
+  const [cierre, setCierre] = useState<CierrePendiente | null>(null);
+  const cerrar = useCallback(
+    (oportunidad: Oportunidad, resultado: Cierre) =>
+      setCierre({ oportunidad, resultado }),
+    [],
+  );
+  // Las zonas se montan antes de que la librería mida las áreas donde soltar
+  const alCapturar: OnBeforeCaptureResponder = () => setArrastrando(true);
   const enMovimiento = useMemo(
     () => new Set(pendientes.map((pendiente) => pendiente.oportunidad.id)),
     [pendientes],
@@ -71,10 +95,16 @@ const Tablero = () => {
     source,
     draggableId,
   }) => {
+    setArrastrando(false);
     if (!destination || destination.droppableId === source.droppableId) {
       return;
     }
     const oportunidad = cargadas.current.get(draggableId);
+    const resultado = cierreDeZona(destination.droppableId);
+    if (oportunidad && resultado) {
+      cerrar(oportunidad, resultado);
+      return;
+    }
     const desde = source.droppableId;
     const hacia = destination.droppableId;
     if (!oportunidad || !esEtapa(desde) || !esEtapa(hacia)) return;
@@ -106,7 +136,7 @@ const Tablero = () => {
   };
 
   return (
-    <DragDropContext onDragEnd={alSoltar}>
+    <DragDropContext onBeforeCapture={alCapturar} onDragEnd={alSoltar}>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {ETAPAS.map((etapa) => (
           <TableroColumna
@@ -117,9 +147,20 @@ const Tablero = () => {
             arrastreDeshabilitado={puedeEditar !== true}
             enMovimiento={enMovimiento}
             alCargar={registrar}
+            alCerrar={puedeEditar === true ? cerrar : undefined}
           />
         ))}
       </div>
+      {arrastrando && <ZonasCierre />}
+      {cierre && (
+        <CerrarOportunidadDialog
+          key={`${cierre.oportunidad.id}-${cierre.resultado}`}
+          oportunidad={cierre.oportunidad}
+          resultado={cierre.resultado}
+          onClose={() => setCierre(null)}
+          onCerrada={(cerrada) => quitarDelTablero(queryClient, cerrada.id)}
+        />
+      )}
     </DragDropContext>
   );
 };
@@ -142,8 +183,8 @@ export const OportunidadTablero = () => (
         <div className="space-y-0.5">
           <h1 className="text-2xl font-semibold tracking-tight">Tablero</h1>
           <p className="text-sm text-muted-foreground">
-            Abiertas, por etapa. Arrastrá una tarjeta para cambiarla de etapa;
-            para marcarla ganada o perdida, abrila.
+            Abiertas, por etapa. Arrastrá una tarjeta para cambiarla de etapa, o
+            soltala en Ganada o Perdida para cerrarla (también desde su menú ⋯).
           </p>
         </div>
         <AccionesOportunidades />
@@ -153,6 +194,7 @@ export const OportunidadTablero = () => (
         filtros={
           <>
             <FiltroResponsable />
+            <FiltroCanal />
             <FiltroSoloEmpresas />
           </>
         }

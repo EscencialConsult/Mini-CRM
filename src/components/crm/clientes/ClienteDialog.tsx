@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { etiquetaDocumento, formatDocumento } from "../domain/format";
 import { nombreDe, TIPOS_CLIENTE } from "../domain/options";
 import type { Cliente } from "../domain/types";
-import { useEsAdministrador } from "../providers/authProvider";
+import { useEsAdministrador, useModulos } from "../providers/authProvider";
 import { AutoriaInfo } from "../shared/AutoriaInfo";
 import { EstadoClienteBadge } from "../shared/badges";
 import { DeleteRecordButton } from "../shared/DeleteRecordButton";
@@ -77,7 +77,12 @@ const PESTANA_CON_SCROLL = "min-h-0 overflow-y-auto";
 const Contenido = ({ onClose }: { onClose: () => void }) => {
   const cliente = useRecordContext<Cliente>();
   const esAdministrador = useEsAdministrador();
+  const { tiene } = useModulos();
   if (!cliente) return null;
+  // Cada pestaña relacionada aparece solo con su módulo
+  const conOportunidades = tiene("oportunidades");
+  const conTareas = tiene("actividades");
+  const conHistorial = tiene("auditoria");
 
   return (
     <RecordDialog
@@ -103,9 +108,11 @@ const Contenido = ({ onClose }: { onClose: () => void }) => {
       <Tabs defaultValue="datos" className="min-h-0 flex-1 gap-0">
         <TabsList className="mx-6 mt-4 w-fit max-w-[calc(100%-3rem)] overflow-x-auto">
           <TabsTrigger value="datos">Datos</TabsTrigger>
-          <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
-          <TabsTrigger value="actividades">Tareas</TabsTrigger>
-          {esAdministrador && (
+          {conOportunidades && (
+            <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
+          )}
+          {conTareas && <TabsTrigger value="actividades">Tareas</TabsTrigger>}
+          {conHistorial && (
             <TabsTrigger value="historial">Historial</TabsTrigger>
           )}
         </TabsList>
@@ -138,13 +145,17 @@ const Contenido = ({ onClose }: { onClose: () => void }) => {
             <ClienteInputs />
           </RecordForm>
         </TabsContent>
-        <TabsContent value="oportunidades" className={PESTANA_CON_SCROLL}>
-          <ClienteOportunidades clienteId={cliente.id} />
-        </TabsContent>
-        <TabsContent value="actividades" className={PESTANA_CON_SCROLL}>
-          <ClienteActividades clienteId={cliente.id} />
-        </TabsContent>
-        {esAdministrador && (
+        {conOportunidades && (
+          <TabsContent value="oportunidades" className={PESTANA_CON_SCROLL}>
+            <ClienteOportunidades clienteId={cliente.id} />
+          </TabsContent>
+        )}
+        {conTareas && (
+          <TabsContent value="actividades" className={PESTANA_CON_SCROLL}>
+            <ClienteActividades clienteId={cliente.id} />
+          </TabsContent>
+        )}
+        {conHistorial && (
           <TabsContent value="historial" className={PESTANA_CON_SCROLL}>
             <ClienteHistorial clienteId={cliente.id} />
           </TabsContent>

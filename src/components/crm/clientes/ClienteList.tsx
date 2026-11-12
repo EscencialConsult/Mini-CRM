@@ -13,10 +13,11 @@ import {
   formatMoneda,
   hoyIso,
 } from "../domain/format";
+import { useCanales } from "../canales/useCanales";
 import type { Cliente, Landing } from "../domain/types";
 import { EtiquetasCliente } from "../etiquetas/EtiquetaChip";
 import { useEtiquetas } from "../etiquetas/useEtiquetas";
-import { useCrmIdentity } from "../providers/authProvider";
+import { useCrmIdentity, useModulos } from "../providers/authProvider";
 import { EstadoClienteBadge } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
@@ -97,6 +98,14 @@ const columnas: ColumnaLista<Cliente>[] = [
     celda: (cliente) => <EstadoClienteBadge estado={cliente.estado} />,
   },
   {
+    id: "canal",
+    encabezado: "Canal",
+    orden: "canal_nombre",
+    etiquetaTarjeta: "Canal",
+    celda: (cliente) =>
+      cliente.canal_nombre ?? <span className="text-muted-foreground">—</span>,
+  },
+  {
     id: "asignado",
     encabezado: "Vendedor",
     orden: "asignado_nombre",
@@ -154,9 +163,11 @@ const useOpcionesLanding = () => {
 
 export const ClienteList = () => {
   const { identity } = useCrmIdentity();
+  const { tiene } = useModulos();
   const { opcionesTodas } = useUsuarios();
   const opcionesLanding = useOpcionesLanding();
   const { etiquetas } = useEtiquetas();
+  const { opcionesFiltro: opcionesCanal } = useCanales();
   const opcionesEtiqueta = etiquetas.map((etiqueta) => ({
     id: String(etiqueta.id),
     name: etiqueta.nombre,
@@ -191,6 +202,15 @@ export const ClienteList = () => {
             etiqueta="Vendedor"
             opciones={opcionesVendedor}
           />
+          {opcionesCanal.length > 0 && (
+            <FilterSelect
+              source="canal_id"
+              etiqueta="Canal"
+              opciones={opcionesCanal}
+              todas="Todos"
+              convertir={Number}
+            />
+          )}
           {opcionesEtiqueta.length > 0 && (
             <FilterSelect
               source="etiquetas"
@@ -219,7 +239,12 @@ export const ClienteList = () => {
           </Link>
         </Button>
       }
-      columnas={columnas}
+      // Sin Tablero no ve oportunidades: la columna quedaría siempre en 0
+      columnas={
+        tiene("oportunidades")
+          ? columnas
+          : columnas.filter((columna) => columna.id !== "oportunidades")
+      }
       tituloFila={(cliente) => cliente.nombre_completo}
       hrefDe={(cliente) => `/clientes/${cliente.id}`}
       vacio="Todavía no hay clientes. Creá el primero con “Nuevo cliente”."

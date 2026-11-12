@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 
+import { useCanales } from "../canales/useCanales";
 import { useCrmIdentity } from "../providers/authProvider";
 import { FilterSelect } from "../shared/ListControls";
 import { useUsuarios } from "../shared/useUsuarios";
@@ -71,6 +72,20 @@ export const FiltroResponsable = () => {
           ? { ...opcion, name: `${opcion.name} (yo)` }
           : opcion,
       )}
+    />
+  );
+};
+
+/** Filtro por canal de venta. */
+export const FiltroCanal = () => {
+  const { opcionesFiltro } = useCanales();
+  if (!opcionesFiltro.length) return null;
+  return (
+    <FilterSelect
+      source="canal_id"
+      etiqueta="Canal"
+      opciones={opcionesFiltro}
+      convertir={Number}
     />
   );
 };
