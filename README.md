@@ -127,7 +127,7 @@ npm run typecheck && npm run lint && npm run build
 
 ## Pendiente / extensiones posibles
 
-- **Desplegar productos, canales, cierre desde el tablero y Ventas** (código listo; migraciones en `supabase/pendientes/`). Pasos en [`ROADMAP.md`](ROADMAP.md).
+- Historial de las fases recientes (módulos, productos, canales, cierre y Ventas) en [`ROADMAP.md`](ROADMAP.md).
 - Tiempo en cada etapa (requiere un historial de etapas).
 - Publicar el sitio en Netlify con el alias de dominio de las landings y `VITE_LANDINGS_URL`.
 - Recordatorios por email (requiere proveedor de envío y una tarea programada).

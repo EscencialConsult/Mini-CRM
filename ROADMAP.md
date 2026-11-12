@@ -8,23 +8,21 @@ Las decisiones ya están tomadas con el usuario (2026-11-11 y 2026-11-12): no vo
 | Fase | Qué | Estado |
 |---|---|---|
 | 1 | Módulos por usuario (permisos) | ✅ Hecha y desplegada (base + Edge Function) |
-| 2 | Catálogo de productos + líneas en la oportunidad | 🟢 Código listo; **falta desplegar** |
-| 3 | Canales de venta | 🟢 Código listo; **falta desplegar** (misma migración que la fase 2) |
-| 4 | Cerrar oportunidades (ganada/perdida) desde el tablero | 🟢 Código listo; **falta desplegar** |
-| 5 | Sección Ventas (listado + reportes) | 🟢 Código listo; **falta desplegar** |
+| 2 | Catálogo de productos + líneas en la oportunidad | ✅ Desplegada |
+| 3 | Canales de venta | ✅ Desplegada |
+| 4 | Cerrar oportunidades (ganada/perdida) desde el tablero | ✅ Desplegada |
+| 5 | Sección Ventas (listado + reportes) | ✅ Desplegada |
 | — | Mejorar la vista de Etiquetas | ✅ Hecha (solo frontend) |
 
-**Lo único que falta es el despliegue** (ver "Despliegue pendiente"). El 2026-11-12 el
-clasificador de permisos de Claude Code bloqueó `npm run db:push` contra la base real: hace falta
-que el usuario lo autorice o lo corra él.
+**Desplegado el 2026-11-12**: las 3 migraciones aplicadas con `db:push` y la Edge Function `users`
+actualizada (v3). Commit `a58adb4` en la rama `feat/productos-canales-ventas` (pusheada; falta
+mergear a `main`). El frontend no está publicado: se usa en local con `npm run dev`.
 
-**Nada de esto está commiteado.** El frontend no está publicado: se usa en local con `npm run dev`.
-⚠️ El frontend nuevo **no funciona contra la base actual** (pide `productos`, `canales`,
-`ventas_reporte`…): primero la base.
+**Falta:** probar en la app con un administrador y un vendedor (ver "Qué probar") y mergear la rama.
 
 ---
 
-## Despliegue pendiente (en este orden)
+## Despliegue (hecho el 2026-11-12)
 
 Las migraciones están en `supabase/pendientes/` **a propósito**, para que `db:push` no las aplique
 antes de tiempo. Las tres van juntas y en orden:
