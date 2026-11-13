@@ -7,9 +7,11 @@ import {
   type DeleteManyParams,
   type DeleteParams,
   type GetListParams,
+  type GetListResult,
   type GetManyParams,
   type GetManyReferenceParams,
   type GetOneParams,
+  type GetOneResult,
   type Identifier,
   type RaRecord,
   type SortPayload,
@@ -18,11 +20,14 @@ import {
 } from "ra-core";
 
 import type {
+  CambiosCuenta,
   CambiosUsuario,
+  Cuenta,
   EstadoPedido,
   Landing,
   LandingEstadisticas,
   LandingIndicadores,
+  NuevaCuenta,
   NuevoUsuario,
   Pedido,
   Usuario,
@@ -410,6 +415,17 @@ export interface CrmDataProvider extends DataProvider {
   rpc<T>(funcion: string, args?: Record<string, unknown>): Promise<T>;
   crearUsuario(datos: NuevoUsuario): Promise<Usuario>;
   actualizarUsuario(cambios: CambiosUsuario): Promise<Usuario>;
+  /** Cuentas con su plan y su titular (solo la plataforma; Edge Function `cuentas`). */
+  listarCuentas(): Promise<Cuenta[]>;
+  /** Crea la cuenta y su administrador titular; `clave_inicial` viene si la generó el sistema. */
+  crearCuenta(datos: NuevaCuenta): Promise<Cuenta & { clave_inicial?: string }>;
+  actualizarCuenta(cambios: CambiosCuenta): Promise<Cuenta>;
+  /** Cambia la contraseña de un administrador de la cuenta. */
+  restablecerClaveTitular(
+    cuentaId: number,
+    usuarioId: string,
+    password: string,
+  ): Promise<void>;
   /** Valida el borrador guardado y lo publica; LandingNoLista si falta algo. */
   publicarLanding(id: Identifier): Promise<Landing>;
   despublicarLanding(id: Identifier): Promise<Landing>;
@@ -465,19 +481,59 @@ export const getDataProvider = (): CrmDataProvider => {
     return data;
   };
 
-  const invocarUsuarios = async <T>(
-    method: "POST" | "PATCH",
-    body: object,
+  const invocarFuncion = async <T>(
+    funcion: "users" | "cuentas",
+    method: "GET" | "POST" | "PATCH",
+    body?: object,
   ): Promise<T> => {
     const { data, error } = await client.functions.invoke<{ data: T }>(
-      "users",
-      {
-        method,
-        body,
-      },
+      funcion,
+      body ? { method, body } : { method },
     );
     if (error || !data) throw await mensajeDeFuncion(error);
     return data.data;
+  };
+  const invocarUsuarios = <T>(method: "POST" | "PATCH", body: object) =>
+    invocarFuncion<T>("users", method, body);
+  const listarCuentas = () => invocarFuncion<Cuenta[]>("cuentas", "GET");
+
+  /** Las cuentas vienen de una Edge Function, no de una tabla: filtra, ordena y pagina acá. */
+  const listaDeCuentas = async (
+    params: GetListParams,
+  ): Promise<GetListResult> => {
+    const { q, activa } = (params.filter ?? {}) as {
+      q?: unknown;
+      activa?: unknown;
+    };
+    const texto = typeof q === "string" ? q.trim().toLowerCase() : "";
+    let filas = await listarCuentas();
+    if (texto) {
+      filas = filas.filter((cuenta) =>
+        `${cuenta.nombre} ${cuenta.titular?.email ?? ""}`
+          .toLowerCase()
+          .includes(texto),
+      );
+    }
+    if (typeof activa === "boolean") {
+      filas = filas.filter((cuenta) => cuenta.activa === activa);
+    }
+    const { field, order } = params.sort ?? { field: "nombre", order: "ASC" };
+    const signo = order === "DESC" ? -1 : 1;
+    filas = [...filas].sort((a, b) => {
+      const x = (a as unknown as Record<string, unknown>)[field];
+      const y = (b as unknown as Record<string, unknown>)[field];
+      if (x === y) return a.id - b.id;
+      const orden =
+        typeof x === "number" && typeof y === "number"
+          ? x - y
+          : String(x ?? "").localeCompare(String(y ?? ""), "es");
+      return orden * signo || a.id - b.id;
+    });
+    const { page, perPage } = params.pagination ?? { page: 1, perPage: 25 };
+    return {
+      data: filas.slice((page - 1) * perPage, page * perPage),
+      total: filas.length,
+    };
   };
 
   const rpc = async <T>(
@@ -498,15 +554,25 @@ export const getDataProvider = (): CrmDataProvider => {
   return {
     ...base,
     getList: (resource: string, params: GetListParams) =>
-      guard(() =>
-        base.getList(nombreLectura(resource), {
-          ...params,
-          sort: conDesempate(params.sort),
-          filter: aFiltroApi(resource, params.filter),
-        }),
-      ),
+      resource === "cuentas"
+        ? guard(() => listaDeCuentas(params))
+        : guard(() =>
+            base.getList(nombreLectura(resource), {
+              ...params,
+              sort: conDesempate(params.sort),
+              filter: aFiltroApi(resource, params.filter),
+            }),
+          ),
     getOne: (resource: string, params: GetOneParams) =>
-      guard(() => base.getOne(nombreLectura(resource), params)),
+      resource === "cuentas"
+        ? guard(async (): Promise<GetOneResult> => {
+            const cuenta = (await listarCuentas()).find(
+              (candidata) => String(candidata.id) === String(params.id),
+            );
+            if (!cuenta) throw new HttpError("Cuenta no encontrada", 404);
+            return { data: cuenta };
+          })
+        : guard(() => base.getOne(nombreLectura(resource), params)),
     getMany: (resource: string, params: GetManyParams) =>
       guard(() => base.getMany(nombreLectura(resource), params)),
     getManyReference: (resource: string, params: GetManyReferenceParams) =>
@@ -519,6 +585,14 @@ export const getDataProvider = (): CrmDataProvider => {
       ),
     create: (resource: string, params: CreateParams) =>
       guard(async () => {
+        if (resource === "cuentas") {
+          const creada = await invocarFuncion<Cuenta>(
+            "cuentas",
+            "POST",
+            params.data,
+          );
+          return { data: creada };
+        }
         const { data } = await base.create(nombreEscritura(resource), {
           ...params,
           data: soloEscribibles(resource, params.data),
@@ -527,6 +601,13 @@ export const getDataProvider = (): CrmDataProvider => {
       }),
     update: (resource: string, params: UpdateParams) =>
       guard(async () => {
+        if (resource === "cuentas") {
+          const editada = await invocarFuncion<Cuenta>("cuentas", "PATCH", {
+            ...params.data,
+            id: Number(params.id),
+          });
+          return { data: editada };
+        }
         const { data } = await base.update(nombreEscritura(resource), {
           ...params,
           data: soloEscribibles(resource, params.data),
@@ -548,6 +629,22 @@ export const getDataProvider = (): CrmDataProvider => {
     rpc,
     crearUsuario: (datos) => invocarUsuarios<Usuario>("POST", datos),
     actualizarUsuario: (cambios) => invocarUsuarios<Usuario>("PATCH", cambios),
+    listarCuentas,
+    crearCuenta: (datos) =>
+      invocarFuncion<Cuenta & { clave_inicial?: string }>(
+        "cuentas",
+        "POST",
+        datos,
+      ),
+    actualizarCuenta: (cambios) =>
+      invocarFuncion<Cuenta>("cuentas", "PATCH", cambios),
+    async restablecerClaveTitular(cuentaId, usuarioId, password) {
+      await invocarFuncion<Cuenta>("cuentas", "PATCH", {
+        id: cuentaId,
+        usuario_id: usuarioId,
+        password,
+      });
+    },
 
     async publicarLanding(id) {
       // Lo guardado, no lo que tenga la pantalla: es lo que se va a publicar
@@ -583,7 +680,11 @@ export const getDataProvider = (): CrmDataProvider => {
           .pop()
           ?.toLowerCase()
           .replace(/[^a-z0-9]/g, "") || "png";
-      const ruta = `${crypto.randomUUID()}.${extension}`;
+      // Cada cuenta sube a su carpeta: la base solo deja leer y borrar la propia
+      // (sin la migración de cuentas todavía, queda en la raíz como siempre)
+      const cuenta = await rpc<number>("mi_cuenta").catch(() => null);
+      const nombre = `${crypto.randomUUID()}.${extension}`;
+      const ruta = cuenta ? `${cuenta}/${nombre}` : nombre;
       const storage = client.storage.from(BUCKET_IMAGENES_LANDING);
       const { error } = await storage.upload(ruta, archivo, {
         contentType: archivo.type,

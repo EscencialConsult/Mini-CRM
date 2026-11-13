@@ -73,6 +73,12 @@ export const puedeAcceder = (
   action: string,
 ): boolean => {
   if (!resource) return true;
+  // Las cuentas son solo del dueño del sistema (la Edge Function lo vuelve a exigir)
+  if (resource === "cuentas") {
+    return !!perfil.plataforma && (SIN_BORRAR as readonly string[]).includes(action);
+  }
+  // Cuenta suspendida: no puede abrir nada hasta que la reactiven
+  if (perfil.cuenta && !perfil.cuenta.activa) return false;
   const modulo = MODULO_DE_RECURSO[resource];
   if (modulo && !tieneModulo(perfil, modulo)) return false;
   return (ACCIONES[perfil.rol][resource] ?? []).includes(action as Accion);

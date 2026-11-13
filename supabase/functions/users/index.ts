@@ -1,6 +1,8 @@
 // Edge Function `users`: gestión de usuarios del Mini-CRM. Solo administradores activos.
 //   POST  { email, password, nombre, apellido, rol, modulos? }                → crea el usuario
 //   PATCH { id, nombre?, apellido?, rol?, activo?, password?, modulos? }       → actualiza datos, rol, estado, clave o módulos
+// Cada administrador gestiona SOLO a los usuarios de su cuenta, con los módulos que su cuenta tiene
+// y hasta su máximo de usuarios activos. Una cuenta suspendida no gestiona nada.
 // Los usuarios no se eliminan: se desactivan (conserva el historial de autoría).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -20,6 +22,9 @@ type Modulo =
 
 interface PerfilUsuario {
   id: string;
+  cuenta_id: number;
+  /** Dueño del sistema: solo otro usuario de la plataforma puede modificarlo. */
+  plataforma: boolean;
   nombre: string;
   apellido: string;
   email: string;
@@ -28,6 +33,15 @@ interface PerfilUsuario {
   modulos: Modulo[];
   sistema: boolean;
 }
+
+interface CuentaActor {
+  id: number;
+  activa: boolean;
+  modulos: Modulo[];
+  max_usuarios: number | null;
+}
+
+type Actor = PerfilUsuario & { cuenta: CuentaActor };
 
 type AccionAuditoria =
   | "crear"
@@ -52,7 +66,7 @@ const MODULOS: readonly Modulo[] = [
   "auditoria",
 ];
 const MODULOS_POR_DEFECTO: readonly Modulo[] = ["panel", "clientes", "oportunidades", "actividades"];
-const COLUMNAS_PERFIL = "id, nombre, apellido, email, rol, activo, modulos, sistema";
+const COLUMNAS_PERFIL = "id, cuenta_id, plataforma, nombre, apellido, email, rol, activo, modulos, sistema";
 const MIN_CLAVE = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BAN_PERMANENTE = "876000h";
@@ -101,11 +115,37 @@ const leerModulos = (valor: unknown): Modulo[] => {
 const mismosModulos = (a: readonly Modulo[], b: readonly Modulo[]) =>
   a.length === b.length && a.every((modulo) => b.includes(modulo));
 
+/** Los módulos que se asignan tienen que estar entre los que la cuenta tiene. */
+const exigirEnPlan = (modulos: readonly Modulo[], cuenta: CuentaActor) => {
+  const fuera = modulos.filter((modulo) => !cuenta.modulos.includes(modulo));
+  if (fuera.length > 0) {
+    throw new HttpError(403, "Algún módulo no está incluido en el plan de la cuenta", "module_not_in_plan");
+  }
+};
+
+/** Respeta el máximo de usuarios activos de la cuenta (null = sin límite). */
+const exigirCupo = async (cuenta: CuentaActor) => {
+  if (cuenta.max_usuarios === null) return;
+  const { count } = await admin
+    .from("usuarios")
+    .select("id", { count: "exact", head: true })
+    .eq("cuenta_id", cuenta.id)
+    .eq("activo", true)
+    .eq("sistema", false);
+  if ((count ?? 0) >= cuenta.max_usuarios) {
+    throw new HttpError(
+      409,
+      `La cuenta llegó a su máximo de ${cuenta.max_usuarios} usuarios activos`,
+      "user_limit",
+    );
+  }
+};
+
 const nombreCompleto = (perfil: Pick<PerfilUsuario, "nombre" | "apellido">) =>
   `${perfil.nombre} ${perfil.apellido}`.trim();
 
 /** Verifica el JWT del llamador y que sea un administrador activo. */
-const exigirAdministrador = async (req: Request): Promise<PerfilUsuario> => {
+const exigirAdministrador = async (req: Request): Promise<Actor> => {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) throw new HttpError(401, "Falta la sesión", "no_session");
 
@@ -120,16 +160,25 @@ const exigirAdministrador = async (req: Request): Promise<PerfilUsuario> => {
   if (!perfil || !perfil.activo || perfil.rol !== "administrador") {
     throw new HttpError(403, "Solo un administrador puede gestionar usuarios", "not_allowed");
   }
-  return perfil;
+
+  const { data: cuenta } = await admin
+    .from("cuentas")
+    .select("id, activa, modulos, max_usuarios")
+    .eq("id", perfil.cuenta_id)
+    .maybeSingle<CuentaActor>();
+  if (!cuenta) throw new HttpError(403, "La cuenta no existe", "no_account");
+  if (!cuenta.activa) throw new HttpError(403, "La cuenta está suspendida", "account_suspended");
+  return { ...perfil, cuenta };
 };
 
 const auditar = async (
-  actor: PerfilUsuario,
+  actor: Actor,
   objetivo: Pick<PerfilUsuario, "id" | "nombre" | "apellido">,
   accion: AccionAuditoria,
   cambios: Record<string, unknown>,
 ) => {
   const { error } = await admin.from("auditoria").insert({
+    cuenta_id: actor.cuenta_id,
     usuario_id: actor.id,
     entidad: "usuarios",
     registro_id: objetivo.id,
@@ -141,7 +190,7 @@ const auditar = async (
   if (error) console.error("users.auditoria_fallida", { accion, objetivo: objetivo.id, error });
 };
 
-const crearUsuario = async (actor: PerfilUsuario, body: Record<string, unknown>) => {
+const crearUsuario = async (actor: Actor, body: Record<string, unknown>) => {
   const email = texto(body.email).toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
   const nombre = texto(body.nombre);
@@ -155,6 +204,8 @@ const crearUsuario = async (actor: PerfilUsuario, body: Record<string, unknown>)
   }
   if (!nombre || !apellido) throw new HttpError(400, "Nombre y apellido son obligatorios", "invalid_name");
   if (!esRol(rol)) throw new HttpError(400, "Rol inválido", "invalid_role");
+  exigirEnPlan(modulos, actor.cuenta);
+  await exigirCupo(actor.cuenta);
 
   const { data: creado, error: authError } = await admin.auth.admin.createUser({
     email,
@@ -171,7 +222,7 @@ const crearUsuario = async (actor: PerfilUsuario, body: Record<string, unknown>)
     );
   }
 
-  const perfil = { id: creado.user.id, email, nombre, apellido, rol, activo: true, modulos };
+  const perfil = { id: creado.user.id, cuenta_id: actor.cuenta_id, email, nombre, apellido, rol, activo: true, modulos };
   const { error: perfilError } = await admin.from("usuarios").insert(perfil);
   if (perfilError) {
     // Sin perfil el usuario no podría operar: se revierte el alta en Auth
@@ -184,7 +235,7 @@ const crearUsuario = async (actor: PerfilUsuario, body: Record<string, unknown>)
   return perfil;
 };
 
-const actualizarUsuario = async (actor: PerfilUsuario, body: Record<string, unknown>) => {
+const actualizarUsuario = async (actor: Actor, body: Record<string, unknown>) => {
   const id = texto(body.id);
   if (!id) throw new HttpError(400, "Falta el id del usuario", "missing_id");
 
@@ -193,9 +244,18 @@ const actualizarUsuario = async (actor: PerfilUsuario, body: Record<string, unkn
     .select(COLUMNAS_PERFIL)
     .eq("id", id)
     .maybeSingle<PerfilUsuario>();
-  if (!actual) throw new HttpError(404, "Usuario no encontrado", "not_found");
+  // Un usuario de otra cuenta se trata como inexistente: no se revela que existe
+  if (!actual || actual.cuenta_id !== actor.cuenta_id) {
+    throw new HttpError(404, "Usuario no encontrado", "not_found");
+  }
   // El usuario del sistema (Bot WhatsApp) no se toca: ni datos, ni clave, ni estado
   if (actual.sistema) throw new HttpError(403, "Es un usuario del sistema: no se modifica", "system_user");
+  // El usuario de la plataforma (el dueño del sistema) solo lo modifica otro usuario de la plataforma:
+  // si no, cualquier otro administrador de la cuenta principal podría quedarse con ella cambiándole
+  // la clave, el rol o el estado, y desde ahí ver las demás cuentas.
+  if (actual.plataforma && !actor.plataforma) {
+    throw new HttpError(403, "Es un usuario de la plataforma: no se modifica desde acá", "platform_user");
+  }
 
   const esUnoMismo = actual.id === actor.id;
   const cambios: Partial<Pick<PerfilUsuario, "nombre" | "apellido" | "rol" | "activo" | "modulos">> = {};
@@ -218,10 +278,12 @@ const actualizarUsuario = async (actor: PerfilUsuario, body: Record<string, unkn
   if (body.activo !== undefined && body.activo !== actual.activo) {
     if (typeof body.activo !== "boolean") throw new HttpError(400, "Estado inválido", "invalid_state");
     if (esUnoMismo) throw new HttpError(403, "No podés desactivar tu propia cuenta", "self_change");
+    if (body.activo) await exigirCupo(actor.cuenta);
     cambios.activo = body.activo;
   }
   if (body.modulos !== undefined) {
     const modulos = leerModulos(body.modulos);
+    exigirEnPlan(modulos, actor.cuenta);
     if (!mismosModulos(modulos, actual.modulos)) cambios.modulos = modulos;
   }
 

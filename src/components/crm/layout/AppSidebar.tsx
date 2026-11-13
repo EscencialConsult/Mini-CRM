@@ -1,4 +1,5 @@
 import {
+  Building2,
   Columns3,
   Globe,
   HandCoins,
@@ -44,6 +45,7 @@ import { nombreDe, ROLES } from "../domain/options";
 import {
   useCrmIdentity,
   useEsAdministrador,
+  useEsPlataforma,
   useModulos,
 } from "../providers/authProvider";
 import { APP_TITLE } from "../root/config";
@@ -54,6 +56,8 @@ import { useRecordatorios } from "./useRecordatorios";
 interface ItemNavegacion {
   /** Sin módulo: solo el administrador (Usuarios, Canales). */
   modulo?: Modulo;
+  /** Solo el dueño del sistema (Cuentas). */
+  soloPlataforma?: boolean;
   to: string;
   etiqueta: string;
   Icono: LucideIcon;
@@ -86,8 +90,13 @@ export const AppSidebar = () => {
   const [perfilAbierto, setPerfilAbierto] = useState(false);
   const { tiene } = useModulos();
   const esAdministrador = useEsAdministrador();
+  const esPlataforma = useEsPlataforma();
   const visible = (item: ItemNavegacion) =>
-    item.modulo ? tiene(item.modulo) : esAdministrador;
+    item.soloPlataforma
+      ? esPlataforma
+      : item.modulo
+        ? tiene(item.modulo)
+        : esAdministrador;
 
   const estaEn = (ruta: string) => !!matchPath(`${ruta}/*`, pathname);
 
@@ -147,6 +156,13 @@ export const AppSidebar = () => {
   ).filter(visible);
   const administracion = (
     [
+      {
+        soloPlataforma: true,
+        to: "/cuentas",
+        etiqueta: "Cuentas",
+        Icono: Building2,
+        activo: estaEn("/cuentas"),
+      },
       {
         to: "/usuarios",
         etiqueta: "Usuarios",

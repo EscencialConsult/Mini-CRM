@@ -53,7 +53,7 @@ const mensajeDe = (error: unknown): string =>
 const claveOpcional: Validator = (valor) =>
   valor ? validarClave(valor) : undefined;
 
-const GeneradorClave = () => {
+export const GeneradorClave = () => {
   const { setValue } = useFormContext();
   const generar = () => {
     const azar = crypto.getRandomValues(new Uint32Array(12));
@@ -73,9 +73,11 @@ const GeneradorClave = () => {
 const Campos = ({
   editando,
   esUnoMismo,
+  modulosDeLaCuenta,
 }: {
   editando: boolean;
   esUnoMismo: boolean;
+  modulosDeLaCuenta?: readonly Modulo[];
 }) => (
   <>
     <div className="grid gap-4 sm:grid-cols-2">
@@ -110,7 +112,7 @@ const Campos = ({
         />
       )}
     </div>
-    <ModulosInput />
+    <ModulosInput disponibles={modulosDeLaCuenta} />
     <div className="space-y-2">
       {/* Visible a propósito: el administrador se la comunica al usuario */}
       <TextInput
@@ -137,6 +139,12 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
   const refrescar = useRefrescarDatos();
   const queryClient = useQueryClient();
   const editando = id !== undefined;
+  // Solo se asignan módulos que la cuenta tiene (la Edge Function lo exige)
+  const modulosDeLaCuenta = identity?.cuenta?.modulos;
+  const enLaCuenta = (modulos: Modulo[]) =>
+    modulosDeLaCuenta
+      ? modulos.filter((modulo) => modulosDeLaCuenta.includes(modulo))
+      : modulos;
 
   const { data: usuario, isPending } = useGetOne<Usuario>(
     "usuarios",
@@ -153,7 +161,7 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
           nombre: valores.nombre,
           apellido: valores.apellido,
           rol: valores.rol,
-          modulos: valores.modulos ?? MODULOS_POR_DEFECTO,
+          modulos: enLaCuenta(valores.modulos ?? MODULOS_POR_DEFECTO),
         };
         return dataProvider.crearUsuario(nuevo);
       }
@@ -163,7 +171,7 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
         apellido: valores.apellido,
         rol: valores.rol,
         activo: valores.activo,
-        ...(valores.modulos ? { modulos: valores.modulos } : {}),
+        ...(valores.modulos ? { modulos: enLaCuenta(valores.modulos) } : {}),
         ...(valores.password ? { password: valores.password } : {}),
       };
       return dataProvider.actualizarUsuario(cambios);
@@ -214,7 +222,11 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
         defaultValues={
           editando
             ? undefined
-            : { rol: "vendedor", activo: true, modulos: MODULOS_POR_DEFECTO }
+            : {
+                rol: "vendedor",
+                activo: true,
+                modulos: enLaCuenta(MODULOS_POR_DEFECTO),
+              }
         }
         // Espera la respuesta: el botón queda en carga hasta que termina
         onSubmit={async (valores: FieldValues) => {
@@ -225,7 +237,11 @@ export const UsuarioFormDialog = ({ id, onClose }: UsuarioFormDialogProps) => {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto bg-background px-6 py-5">
-          <Campos editando={editando} esUnoMismo={esUnoMismo} />
+          <Campos
+            editando={editando}
+            esUnoMismo={esUnoMismo}
+            modulosDeLaCuenta={modulosDeLaCuenta}
+          />
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t bg-background px-6 py-3">
           <Button type="button" variant="outline" onClick={onClose}>

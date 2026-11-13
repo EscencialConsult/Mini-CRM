@@ -101,14 +101,24 @@ export const nombreModulo = (id: string): string =>
 export interface PerfilConModulos {
   rol: Rol;
   modulos: readonly Modulo[];
+  /** Dueño del sistema: administra las cuentas. */
+  plataforma?: boolean;
+  /** Plan de la cuenta. Sin él (perfil viejo) no se limita nada: la base manda. */
+  cuenta?: { activa: boolean; modulos: readonly Modulo[] };
 }
 
-/** El administrador tiene todos; el resto, los que le asignaron. */
+/**
+ * Se usa si la cuenta lo tiene Y el usuario lo tiene: el administrador, todos
+ * los de su cuenta; el resto, los que le asignaron. Una cuenta suspendida no
+ * usa ninguno.
+ */
 export const tieneModulo = (
   perfil: PerfilConModulos | undefined,
   modulo: Modulo,
 ): boolean =>
   !!perfil &&
+  (perfil.cuenta === undefined ||
+    (perfil.cuenta.activa && perfil.cuenta.modulos.includes(modulo))) &&
   (perfil.rol === "administrador" || perfil.modulos.includes(modulo));
 
 /** Primera pantalla que puede abrir: donde aterriza si no tiene el Panel. */

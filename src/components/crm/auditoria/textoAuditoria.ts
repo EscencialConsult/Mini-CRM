@@ -40,6 +40,11 @@ const SUSTANTIVOS: Record<EntidadAuditoria, Sustantivo> = {
     conDe: "del pedido",
     conA: "al pedido",
   },
+  cuentas: {
+    conArticulo: "la cuenta",
+    conDe: "de la cuenta",
+    conA: "a la cuenta",
+  },
 };
 
 /** "Creó el cliente “Juan Pérez”", sin el nombre de quien lo hizo. */
@@ -108,6 +113,8 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   landing_id: "Landing de origen",
   etiquetas: "Etiquetas",
   modulos: "Módulos",
+  max_usuarios: "Máximo de usuarios",
+  titular: "Titular",
   productos: "Productos",
   canal_id: "Canal",
   tipo_entrega: "Entrega",

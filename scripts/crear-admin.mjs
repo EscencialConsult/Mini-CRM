@@ -1,12 +1,14 @@
 // Crea el primer administrador (o cualquier usuario) sin pasar por la app.
-//   node scripts/crear-admin.mjs <email> <nombre> <apellido> [clave] [rol]
+//   node scripts/crear-admin.mjs <email> <nombre> <apellido> [clave] [rol] [cuenta_id]
+// Sin cuenta_id el usuario va a la cuenta principal, pero solo mientras exista una sola
+// cuenta: con varias hay que indicar a cuál pertenece.
 // Si no se pasa clave, genera una y la imprime. Usa la secret key de .env.scripts.
 import { randomBytes } from "node:crypto";
 import { loadScriptEnv } from "./env.mjs";
 
-const [email, nombre, apellido, claveArg, rol = "administrador"] = process.argv.slice(2);
+const [email, nombre, apellido, claveArg, rol = "administrador", cuentaArg] = process.argv.slice(2);
 if (!email || !nombre || !apellido) {
-  console.error("Uso: node scripts/crear-admin.mjs <email> <nombre> <apellido> [clave] [rol]");
+  console.error("Uso: node scripts/crear-admin.mjs <email> <nombre> <apellido> [clave] [rol] [cuenta_id]");
   process.exit(1);
 }
 
@@ -33,7 +35,15 @@ if (!authResponse.ok) {
 const profileResponse = await fetch(`${env.SUPABASE_URL}/rest/v1/usuarios`, {
   method: "POST",
   headers: { ...headers, Prefer: "return=minimal" },
-  body: JSON.stringify({ id: authBody.id, email, nombre, apellido, rol, activo: true }),
+  body: JSON.stringify({
+    id: authBody.id,
+    email,
+    nombre,
+    apellido,
+    rol,
+    activo: true,
+    ...(cuentaArg ? { cuenta_id: Number(cuentaArg) } : {}),
+  }),
 });
 if (!profileResponse.ok) {
   console.error("Perfil:", await profileResponse.text());

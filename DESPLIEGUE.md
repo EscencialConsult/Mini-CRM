@@ -24,11 +24,12 @@ descripción, no por su ubicación exacta.
 10. [Paso 7 — La función de usuarios](#paso-7--la-función-de-usuarios)
 11. [Paso 8 — El login de Supabase](#paso-8--el-login-de-supabase)
 12. [Paso 9 — Verificación](#paso-9--verificación)
-13. [Cómo se actualiza el sitio](#cómo-se-actualiza-el-sitio)
-14. [Cuánto cuesta y qué límites tiene](#cuánto-cuesta-y-qué-límites-tiene)
-15. [Problemas frecuentes](#problemas-frecuentes)
-16. [Alternativas a Netlify](#alternativas-a-netlify)
-17. [Secretos y seguridad](#secretos-y-seguridad)
+13. [Paso 10 — Vender a varios clientes (cuentas)](#paso-10--vender-a-varios-clientes-cuentas)
+14. [Cómo se actualiza el sitio](#cómo-se-actualiza-el-sitio)
+15. [Cuánto cuesta y qué límites tiene](#cuánto-cuesta-y-qué-límites-tiene)
+16. [Problemas frecuentes](#problemas-frecuentes)
+17. [Alternativas a Netlify](#alternativas-a-netlify)
+18. [Secretos y seguridad](#secretos-y-seguridad)
 
 ---
 
@@ -380,6 +381,9 @@ export SUPABASE_ACCESS_TOKEN=sbp_tu_token
 npx supabase functions deploy users --use-api --project-ref dzabqnznnotkztrdextl --yes
 ```
 
+Si vas a trabajar con varios clientes, hay una segunda función (`cuentas`) que se
+despliega igual: ver el [Paso 10](#paso-10--vender-a-varios-clientes-cuentas).
+
 > El token (`sbp_...`) es **personal y secreto**: no lo pegues en el código, ni en
 > Netlify, ni en un chat. Si se filtra, borralo y generá otro.
 
@@ -435,6 +439,8 @@ Recorré esta lista de arriba a abajo. Si algo falla, mirá
 - [ ] Podés iniciar sesión y la sesión persiste al recargar la página.
 - [ ] Al recargar en una pantalla interna (por ejemplo `#/clientes`) **no** da 404.
 - [ ] En **Usuarios** podés crear un usuario nuevo.
+- [ ] (Plataforma) En **Cuentas** creás una cuenta de prueba, entrás con su titular, ves
+      solo lo de esa cuenta y el titular puede crear un trabajador.
 - [ ] En **Landings**, creás una y la **publicás**.
 - [ ] `https://paginas.midominio.com/<slug>` muestra la landing publicada
       (no el CRM, no una redirección al CRM).
@@ -445,6 +451,94 @@ Recorré esta lista de arriba a abajo. Si algo falla, mirá
 - [ ] El cliente nuevo aparece en **Clientes**, con canal de origen **Landing**.
 - [ ] En **Resultados** de la landing se registran la visita y el contacto.
 - [ ] Abriendo el sitio en el celular, se ve bien (no hay scroll horizontal).
+
+---
+
+## Paso 10 — Vender a varios clientes (cuentas)
+
+El sistema aloja varias empresas —**cuentas**— en la misma instalación, aisladas entre
+sí. Vos sos la **plataforma**: creás las cuentas y decidís qué módulos y cuántos
+usuarios tiene cada una. Cada cliente entra a su cuenta, crea a sus propios
+trabajadores y solo ve sus propios datos.
+
+### 10.1. Orden de despliegue (importante)
+
+1. **Base de datos**: `npm run db:push` (aplica `20261114100000_cuentas.sql`). Todo lo
+   que existe pasa a la «Cuenta principal», con todos los módulos y sin límite de
+   usuarios, y el administrador más antiguo queda como plataforma.
+2. **Funciones** (las dos, con el mismo token del Paso 7):
+
+```bash
+npx supabase functions deploy users --use-api --project-ref dzabqnznnotkztrdextl --yes
+npx supabase functions deploy cuentas --use-api --project-ref dzabqnznnotkztrdextl --yes
+```
+
+3. **El sitio** (`git push` a `main`). El CRM nuevo lee columnas que crea la migración,
+   por eso va después del paso 1.
+
+> No crees cuentas para clientes hasta tener **las dos funciones** desplegadas: la
+> versión vieja de `users` no sabe de cuentas y dejaría a un administrador tocar
+> usuarios ajenos.
+
+### 10.2. Quién es la plataforma
+
+La migración marca como plataforma al administrador más antiguo (no al bot). Solo
+esa persona ve **Cuentas** en el menú, y solo otro usuario de la plataforma puede
+modificarla desde **Usuarios** (los demás administradores de la cuenta principal no
+pueden cambiarle la clave, el rol ni el estado). Para dejar como plataforma solo a
+otra persona:
+
+```bash
+npm run db:psql -- -c "update public.usuarios set plataforma = (lower(email) = 'tu@correo.com') where not sistema"
+```
+
+### 10.3. Dar de alta a un cliente
+
+**Cuentas → Nueva cuenta**: nombre, máximo de usuarios activos (vacío = sin límite),
+los módulos que contrata y los datos de su **administrador titular** (email y una
+contraseña inicial que le pasás vos). El titular entra, va a **Usuarios** y crea a
+sus trabajadores: solo puede darles módulos que tenga la cuenta y hasta el máximo.
+
+- **Cambiar el plan**: abrí la cuenta, tocá los módulos o el máximo y guardá. Lo que
+  quitás deja de funcionarle a todos sus usuarios enseguida.
+- **Suspender / Reactivar**: botón dentro de la cuenta. Sus usuarios entran pero ven
+  un aviso y ningún dato, y sus landings públicas dejan de responder (la página y los
+  formularios); no se borra nada. Tu propia cuenta no se puede suspender.
+- Una cuenta sin el módulo **Landings** tampoco publica landings, y sin **Pedidos** el
+  carrito de sus landings deja de funcionar.
+- **Perdió la contraseña**: abrí la cuenta → *Contraseña del titular*.
+
+### 10.4. Qué hay que saber
+
+- Cada cuenta tiene sus propios clientes, oportunidades, tareas, productos, canales,
+  etiquetas, landings, pedidos y auditoría. Ninguna ve los datos de otra, tampoco vos
+  como plataforma: ves cuentas, plan y cantidad de usuarios.
+- La dirección de una landing (slug) es única en todo el sistema. Lo que llega por la
+  landing de una cuenta (contactos, pedidos, visitas) queda en esa cuenta.
+- Las imágenes nuevas de las landings se guardan en una carpeta por cuenta; las que
+  ya estaban siguen funcionando y son de la cuenta principal.
+- El bot de WhatsApp (`WHATSAPP.md`) escribe en la cuenta principal. `npm run admin:crear`
+  también, mientras exista una sola cuenta; con varias hay que indicarla al final
+  (`npm run admin:crear -- correo@dominio.com Nombre Apellido clave administrador 2`).
+  Como el bot usa la clave de servicio, ve los datos de todas las cuentas:
+  al construirlo tiene que filtrar siempre por la cuenta que atiende. Atender WhatsApp
+  para otra cuenta es un trabajo aparte.
+- Si algo no te convence, volvés al deploy anterior del sitio: la base nueva sigue
+  sirviendo al CRM viejo (la migración solo agrega; no borra ni cambia datos).
+- Para sumar tablas o funciones nuevas hay que respetar el aislamiento (el patrón está
+  al principio de `supabase/migrations/20261114100000_cuentas.sql`) y volver a correr la
+  prueba de abajo.
+
+### 10.5. Probar que las cuentas no se mezclan
+
+```bash
+npm run db:psql -- -v ON_ERROR_STOP=1 -f supabase/tests/aislamiento_cuentas.sql
+```
+
+Crea dos cuentas de prueba, actúa como sus usuarios (incluida una landing pública) y
+corta con «FALLO: …» si algo se ve o se toca de la otra. Si todo está bien imprime
+`aislamiento_ok`. Termina con ROLLBACK, así que no deja datos; igual conviene
+correrla en una base de pruebas.
 
 ---
 

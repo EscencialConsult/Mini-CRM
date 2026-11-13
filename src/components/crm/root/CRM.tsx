@@ -53,6 +53,11 @@ const CanalesPage = lazy(() =>
     default: modulo.CanalesPage,
   })),
 );
+const CuentasPage = lazy(() =>
+  import("../cuentas/CuentasPage").then((modulo) => ({
+    default: modulo.CuentasPage,
+  })),
+);
 const UsuariosPage = lazy(() =>
   import("../usuarios/UsuariosPage").then((modulo) => ({
     default: modulo.UsuariosPage,
@@ -84,6 +89,7 @@ const Oportunidades = conAcceso("oportunidades", OportunidadesPage);
 const Pedidos = conAcceso("pedidos", PedidosPage);
 const Actividades = conAcceso("actividades", ActividadesPage);
 const Usuarios = conAcceso("usuarios", UsuariosPage);
+const Cuentas = conAcceso("cuentas", CuentasPage);
 const Landings = conAcceso("landings", LandingList);
 const NuevaLanding = conAcceso("landings", LandingCreate);
 const EditarLanding = conAcceso("landings", LandingEditPage);
@@ -145,6 +151,7 @@ export const CRM = () => (
       create={Usuarios}
       edit={Usuarios}
     />
+    <Resource name="cuentas" list={Cuentas} create={Cuentas} edit={Cuentas} />
     <Resource
       name="landings"
       list={Landings}

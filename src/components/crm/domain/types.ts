@@ -16,7 +16,8 @@ export type EntidadAuditoria =
   | "actividades"
   | "usuarios"
   | "landings"
-  | "pedidos";
+  | "pedidos"
+  | "cuentas";
 export type AccionAuditoria =
   | "crear"
   | "editar"
@@ -49,6 +50,46 @@ export interface Usuario extends RaRecord<string> {
   creado_en: string;
   /** Usuario del sistema (el "Bot WhatsApp"): no inicia sesión ni se asigna a nadie. */
   sistema?: boolean;
+  /** Cuenta (empresa) a la que pertenece. */
+  cuenta_id?: number;
+  /** Dueño del sistema: administra las cuentas. */
+  plataforma?: boolean;
+  /** Su cuenta (se lee junto con el perfil). */
+  cuenta?: CuentaResumen;
+}
+
+/** Lo que el usuario necesita saber de su cuenta: plan y estado. */
+export interface CuentaResumen {
+  id: number;
+  nombre: string;
+  activa: boolean;
+  /** Módulos que la cuenta tiene: el techo de lo que sus usuarios pueden usar. */
+  modulos: Modulo[];
+  /** null = sin límite. */
+  max_usuarios: number | null;
+}
+
+/** Una cuenta tal como la lista la plataforma. */
+export interface Cuenta extends RaRecord<number>, CuentaResumen {
+  creada_en: string;
+  actualizada_en: string;
+  usuarios_activos: number;
+  titular: { id: string; nombre: string; apellido: string; email: string } | null;
+}
+
+export interface NuevaCuenta {
+  nombre: string;
+  modulos: Modulo[];
+  max_usuarios: number | null;
+  titular: { email: string; nombre: string; apellido: string; password?: string };
+}
+
+export interface CambiosCuenta {
+  id: number;
+  nombre?: string;
+  activa?: boolean;
+  modulos?: Modulo[];
+  max_usuarios?: number | null;
 }
 
 export interface Cliente extends RaRecord<number>, Autoria {

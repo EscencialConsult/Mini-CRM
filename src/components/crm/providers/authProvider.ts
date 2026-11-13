@@ -2,7 +2,7 @@ import { useGetIdentity, type AuthProvider, type UserIdentity } from "ra-core";
 import { supabaseAuthProvider } from "ra-supabase-core";
 
 import { tieneModulo, type Modulo } from "../domain/modulos";
-import type { Rol, Usuario } from "../domain/types";
+import type { CuentaResumen, Rol, Usuario } from "../domain/types";
 import { puedeAcceder } from "./permissions";
 import { getSupabaseClient } from "./supabase";
 
@@ -12,11 +12,17 @@ export interface CrmIdentity extends UserIdentity {
   email: string;
   rol: Rol;
   modulos: Modulo[];
+  /** Dueño del sistema: administra las cuentas. */
+  plataforma: boolean;
+  /** Su cuenta: plan (módulos y máximo de usuarios) y si está activa. */
+  cuenta?: CuentaResumen;
 }
 
 // El perfil se vuelve a consultar cada minuto: un cambio de rol o una baja
 // no puede depender de una copia vieja del navegador.
 const PERFIL_TTL_MS = 60 * 1000;
+const COLUMNAS_PERFIL =
+  "id, nombre, apellido, email, rol, activo, modulos, creado_en";
 let perfilEnCache: { perfil: Usuario; leidoEn: number } | null = null;
 
 const leerPerfil = async (): Promise<Usuario | undefined> => {
@@ -25,13 +31,35 @@ const leerPerfil = async (): Promise<Usuario | undefined> => {
   const userId = sesion.session?.user.id;
   if (!userId) return undefined;
 
-  const { data } = await client
+  const completo = await client
     .from("usuarios")
-    .select("id, nombre, apellido, email, rol, activo, modulos, creado_en")
+    .select(`${COLUMNAS_PERFIL}, cuenta_id, plataforma`)
     .eq("id", userId)
     .maybeSingle<Usuario>();
-  if (data) perfilEnCache = { perfil: data, leidoEn: Date.now() };
-  return data ?? undefined;
+  // Si el sitio sale antes que la migración de cuentas, esas columnas no existen
+  // todavía: se lee el perfil de siempre y el CRM sigue funcionando como antes.
+  const { data } = completo.error
+    ? await client
+        .from("usuarios")
+        .select(COLUMNAS_PERFIL)
+        .eq("id", userId)
+        .maybeSingle<Usuario>()
+    : completo;
+  if (!data) return undefined;
+
+  // Su cuenta (RLS solo deja leer la propia). Sin ella no se limita nada en la
+  // pantalla: la base igual rechaza lo que la cuenta no tiene.
+  const { data: cuenta } =
+    data.cuenta_id === undefined
+      ? { data: null }
+      : await client
+          .from("cuentas")
+          .select("id, nombre, activa, modulos, max_usuarios")
+          .eq("id", data.cuenta_id)
+          .maybeSingle<CuentaResumen>();
+  const perfil: Usuario = cuenta ? { ...data, cuenta } : data;
+  perfilEnCache = { perfil, leidoEn: Date.now() };
+  return perfil;
 };
 
 export const getPerfil = async (): Promise<Usuario | undefined> => {
@@ -58,6 +86,8 @@ export const getAuthProvider = (): AuthProvider => {
         email: perfil.email,
         rol: perfil.rol,
         modulos: perfil.modulos,
+        plataforma: perfil.plataforma === true,
+        cuenta: perfil.cuenta,
       };
     },
   });
@@ -100,8 +130,15 @@ export const useCrmIdentity = () => {
   return { identity: data as CrmIdentity | undefined, isPending };
 };
 
-export const useEsAdministrador = (): boolean =>
-  useCrmIdentity().identity?.rol === "administrador";
+export const useEsAdministrador = (): boolean => {
+  const { identity } = useCrmIdentity();
+  // Una cuenta suspendida no administra nada hasta que la reactiven
+  return identity?.rol === "administrador" && identity.cuenta?.activa !== false;
+};
+
+/** El dueño del sistema: ve y administra las cuentas. */
+export const useEsPlataforma = (): boolean =>
+  useCrmIdentity().identity?.plataforma === true;
 
 /**
  * `tiene("clientes")`: si el usuario tiene ese módulo. Mientras carga la

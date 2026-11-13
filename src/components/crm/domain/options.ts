@@ -87,6 +87,7 @@ export const ENTIDADES_AUDITORIA: Opcion<EntidadAuditoria>[] = [
   { id: "usuarios", name: "Usuarios" },
   { id: "landings", name: "Landings" },
   { id: "pedidos", name: "Pedidos" },
+  { id: "cuentas", name: "Cuenta" },
 ];
 
 export const ESTADOS_PEDIDO: Opcion<EstadoPedido>[] = [
