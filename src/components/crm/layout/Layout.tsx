@@ -12,6 +12,7 @@ import {
 import { construirReporte } from "../shared/errors/errorReport";
 import { ErrorDetalle } from "../shared/errors/ErrorDetalle";
 import { GlobalErrorListener } from "../shared/errors/GlobalErrorListener";
+import { AsistenteFlotante } from "../asistente/AsistenteFlotante";
 import { AppSidebar } from "./AppSidebar";
 
 export const Layout = ({ children }: { children: ReactNode }) => (
@@ -51,5 +52,6 @@ export const Layout = ({ children }: { children: ReactNode }) => (
     </SidebarInset>
     <Notification />
     <GlobalErrorListener />
+    <AsistenteFlotante />
   </SidebarProvider>
 );
