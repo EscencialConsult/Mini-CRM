@@ -1,8 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { Bot, Check, Loader2, Send, X } from "lucide-react";
+import { Check, Loader2, MessageSquare, Send, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 
 import { formatMoneda } from "../domain/format";
@@ -20,11 +26,19 @@ type Propuesta = {
   precio: number;
 };
 
-type Mensaje = { role: "user" | "assistant"; content: string; propuesta?: Propuesta };
+type Mensaje = {
+  role: "user" | "assistant";
+  content: string;
+  propuesta?: Propuesta;
+};
 
 type Cuerpo = { mensajes: Mensaje[] } | { confirmar: Propuesta };
 
-type RespuestaAsistente = { respuesta: string; propuesta?: Propuesta; error?: string };
+type RespuestaAsistente = {
+  respuesta: string;
+  propuesta?: Propuesta;
+  error?: string;
+};
 
 const MAX_CARACTERES = 2000;
 
@@ -36,7 +50,12 @@ const llamarAsistente = async (cuerpo: Cuerpo): Promise<RespuestaAsistente> => {
   // Del historial sólo viaja el texto: la tarjeta de propuesta es sólo visual.
   const payload =
     "mensajes" in cuerpo
-      ? { mensajes: cuerpo.mensajes.map(({ role, content }) => ({ role, content })) }
+      ? {
+          mensajes: cuerpo.mensajes.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        }
       : cuerpo;
 
   const res = await fetch("/api/asistente", {
@@ -47,9 +66,13 @@ const llamarAsistente = async (cuerpo: Cuerpo): Promise<RespuestaAsistente> => {
     },
     body: JSON.stringify(payload),
   });
-  const salida = (await res.json().catch(() => null)) as RespuestaAsistente | null;
+  const salida = (await res
+    .json()
+    .catch(() => null)) as RespuestaAsistente | null;
   if (!res.ok || !salida?.respuesta) {
-    throw new Error(salida?.error ?? "No se pudo obtener respuesta del asistente.");
+    throw new Error(
+      salida?.error ?? "No se pudo obtener respuesta del asistente.",
+    );
   }
   return salida;
 };
@@ -70,7 +93,14 @@ export const AsistenteFlotante = () => {
     setError(null);
     try {
       const salida = await llamarAsistente(cuerpo);
-      setMensajes([...base, { role: "assistant", content: salida.respuesta, propuesta: salida.propuesta }]);
+      setMensajes([
+        ...base,
+        {
+          role: "assistant",
+          content: salida.respuesta,
+          propuesta: salida.propuesta,
+        },
+      ]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado.");
     } finally {
@@ -82,7 +112,10 @@ export const AsistenteFlotante = () => {
     evento.preventDefault();
     const consulta = texto.trim();
     if (!consulta || cargando) return;
-    const nuevos: Mensaje[] = [...mensajes, { role: "user", content: consulta }];
+    const nuevos: Mensaje[] = [
+      ...mensajes,
+      { role: "user", content: consulta },
+    ];
     setMensajes(nuevos);
     setTexto("");
     void correr(nuevos, { mensajes: nuevos });
@@ -91,14 +124,18 @@ export const AsistenteFlotante = () => {
   const confirmar = (indice: number) => {
     const propuesta = mensajes[indice]?.propuesta;
     if (!propuesta || cargando) return;
-    const base = mensajes.map((m, i) => (i === indice ? { ...m, propuesta: undefined } : m));
+    const base = mensajes.map((m, i) =>
+      i === indice ? { ...m, propuesta: undefined } : m,
+    );
     setMensajes(base);
     void correr(base, { confirmar: propuesta });
   };
 
   const cancelar = (indice: number) => {
     setMensajes([
-      ...mensajes.map((m, i) => (i === indice ? { ...m, propuesta: undefined } : m)),
+      ...mensajes.map((m, i) =>
+        i === indice ? { ...m, propuesta: undefined } : m,
+      ),
       { role: "assistant", content: "Cancelado. No registré nada." },
     ]);
   };
@@ -107,26 +144,35 @@ export const AsistenteFlotante = () => {
     <>
       <Button
         type="button"
-        size="icon"
-        aria-label="Abrir asistente"
+        variant="secondary"
         onClick={() => setAbierto(true)}
-        className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg"
+        className="fixed bottom-4 right-4 z-40 h-11 gap-2 border px-4 shadow-md"
       >
-        <Bot className="size-5" aria-hidden="true" />
+        <MessageSquare className="size-4" aria-hidden="true" />
+        Asistente
       </Button>
 
       <Sheet open={abierto} onOpenChange={setAbierto}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
+        >
           <SheetHeader className="border-b p-4">
             <SheetTitle>Asistente</SheetTitle>
-            <SheetDescription>Consultá el CRM y registrá prospectos en lenguaje natural.</SheetDescription>
+            <SheetDescription>
+              Consultá el CRM y registrá prospectos en lenguaje natural.
+            </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
+          <div
+            className="flex-1 space-y-3 overflow-y-auto p-4"
+            aria-live="polite"
+          >
             {mensajes.length === 0 && !cargando && (
               <p className="text-sm text-muted-foreground">
-                Ejemplos: "¿qué oportunidades tengo en negociación?", "¿de qué producto tengo más clientes?" o
-                "registrá un prospecto llamado Ana Gómez, interesada en Coaching ejecutivo".
+                Ejemplos: "¿qué oportunidades tengo en negociación?", "¿de qué
+                producto tengo más clientes?" o "registrá un prospecto llamado
+                Ana Gómez, interesada en Coaching ejecutivo".
               </p>
             )}
             {mensajes.map((m, i) => (
@@ -146,7 +192,11 @@ export const AsistenteFlotante = () => {
                     <p className="font-medium">Registrar prospecto</p>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                       <dt className="text-muted-foreground">Nombre</dt>
-                      <dd>{[m.propuesta.nombre, m.propuesta.apellido].filter(Boolean).join(" ")}</dd>
+                      <dd>
+                        {[m.propuesta.nombre, m.propuesta.apellido]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </dd>
                       {m.propuesta.telefono && (
                         <>
                           <dt className="text-muted-foreground">Teléfono</dt>
@@ -161,12 +211,15 @@ export const AsistenteFlotante = () => {
                       )}
                       <dt className="text-muted-foreground">Producto</dt>
                       <dd>
-                        {m.propuesta.productoNombre} ({formatMoneda(m.propuesta.precio)})
+                        {m.propuesta.productoNombre} (
+                        {formatMoneda(m.propuesta.precio)})
                       </dd>
                       {m.propuesta.descripcion && (
                         <>
                           <dt className="text-muted-foreground">Nota</dt>
-                          <dd className="whitespace-pre-wrap">{m.propuesta.descripcion}</dd>
+                          <dd className="whitespace-pre-wrap">
+                            {m.propuesta.descripcion}
+                          </dd>
                         </>
                       )}
                     </dl>
@@ -202,7 +255,10 @@ export const AsistenteFlotante = () => {
               </div>
             )}
             {error && (
-              <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p
+                role="alert"
+                className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
                 {error}
               </p>
             )}

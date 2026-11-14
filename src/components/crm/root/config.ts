@@ -1,1 +1,1 @@
-export const APP_TITLE = "Mini-CRM";
+export const APP_TITLE = "Dealflow";

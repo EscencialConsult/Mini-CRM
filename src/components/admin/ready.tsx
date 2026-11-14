@@ -1,4 +1,4 @@
-import { ScanFace } from "lucide-react";
+import logo from "@/assets/logo.webp";
 
 /**
  * Splash screen displayed when no resources are configured yet.
@@ -11,11 +11,11 @@ export const Ready = () => (
       className="flex-1 flex flex-col text-white text-center justify-center items-center"
       style={{
         background:
-          "linear-gradient(135deg, #00023b 0%, #00023b 50%, #313264 100%)",
+          "linear-gradient(135deg, #000000 0%, #1a181d 55%, #6b1e13 100%)",
       }}
     >
-      <ScanFace className="w-32 h-32 mb-4" />
-      <h1 className="text-3xl mb-4">Escencial</h1>
+      <img className="w-32 h-32 mb-4" src={logo} alt="" />
+      <h1 className="text-3xl mb-4">Dealflow</h1>
       <div className="text-lg opacity-75">
         Your application is properly configured.
         <br />

@@ -50,10 +50,10 @@ const Dashboard = () => {
   const conOportunidades = tiene("oportunidades");
 
   return (
-    <div className="space-y-6 py-2">
+    <div className="space-y-4 py-1">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             Panel de control
           </h1>
           {identity && (
@@ -85,7 +85,7 @@ const Dashboard = () => {
       <Indicadores rango={rango} />
 
       {conOportunidades && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <VentasPorMes />
           <Embudo />
         </div>

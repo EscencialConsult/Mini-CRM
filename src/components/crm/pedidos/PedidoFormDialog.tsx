@@ -1,5 +1,6 @@
-import { required } from "ra-core";
-import { useWatch } from "react-hook-form";
+import { required, useGetOne } from "ra-core";
+import { useEffect, useRef } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 
 import { AutocompleteInput } from "@/components/admin/autocomplete-input";
 import { DateTimeInput } from "@/components/admin/date-time-input";
@@ -11,7 +12,7 @@ import {
   ENTREGA_A_COORDINAR,
   ENTREGAS_PEDIDO_CON_COORDINAR,
 } from "../domain/options";
-import type { EntregaPedido, Pedido } from "../domain/types";
+import type { Cliente, EntregaPedido, Pedido } from "../domain/types";
 import { LINEA_VACIA } from "../oportunidades/lineasProductos";
 import { LineasProductosInput } from "../oportunidades/LineasProductosInput";
 import { RecordFormDialog } from "../shared/RecordFormDialog";
@@ -19,9 +20,38 @@ import { SeccionFormulario } from "../shared/SeccionFormulario";
 
 const aNulo = (valor: string): string | null => valor.trim() || null;
 
+/**
+ * Al elegir un cliente, su domicilio aparece como dirección sugerida (editable
+ * para este pedido). No pisa lo que la persona ya escribió: solo completa el
+ * campo si está vacío o si todavía tiene la sugerencia anterior.
+ */
+const useDireccionSugerida = (entrega: EntregaPedido | null | undefined) => {
+  const { getValues, setValue } = useFormContext();
+  const clienteId = useWatch({ name: "cliente_id" }) as number | undefined;
+  const { data: cliente } = useGetOne<Cliente>(
+    "clientes",
+    { id: clienteId },
+    { enabled: clienteId != null },
+  );
+  const sugeridaAntes = useRef<string | null>(null);
+  const sugerida = cliente?.direccion ?? null;
+
+  useEffect(() => {
+    if (!cliente || entrega === "retiro") return;
+    const actual = (getValues("direccion") as string | null | undefined) ?? "";
+    if (actual === "" || actual === sugeridaAntes.current) {
+      setValue("direccion", sugerida, { shouldDirty: true });
+    }
+    sugeridaAntes.current = sugerida;
+  }, [cliente, sugerida, entrega, getValues, setValue]);
+
+  return sugerida;
+};
+
 const CamposPedido = () => {
   const entrega = useWatch({ name: "tipo_entrega" }) as
     EntregaPedido | null | undefined;
+  const direccionDelCliente = useDireccionSugerida(entrega);
 
   return (
     <>
@@ -56,9 +86,11 @@ const CamposPedido = () => {
             label="Dirección de entrega"
             parse={aNulo}
             helperText={
-              entrega === null
-                ? "Opcional: si todavía no se define la entrega, podés dejarla vacía."
-                : "Si la dejás vacía, se usa la dirección del cliente."
+              direccionDelCliente
+                ? "Sugerida desde el cliente: podés cambiarla para este pedido."
+                : entrega === null
+                  ? "Opcional: si todavía no se define la entrega, podés dejarla vacía."
+                  : "Si la dejás vacía, se usa la dirección del cliente."
             }
           />
         )}

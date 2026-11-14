@@ -37,43 +37,45 @@ const Contenido = ({ children }: { children: ReactNode }) => {
   return <>{children}</>;
 };
 
-export const Layout = ({ children }: { children: ReactNode }) => (
-  <SidebarProvider>
-    <a
-      href="#contenido-principal"
-      className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:shadow"
-    >
-      Saltar al contenido
-    </a>
-    <AppSidebar />
-    <SidebarInset>
-      <div className="flex h-10 items-center px-2 md:hidden">
-        <SidebarTrigger aria-label="Abrir el menú" />
-      </div>
-      <main
-        id="contenido-principal"
-        className="mx-auto w-full max-w-screen-xl p-4"
+export const Layout = ({ children }: { children: ReactNode }) => {
+  return (
+    <SidebarProvider>
+      <a
+        href="#contenido-principal"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:shadow"
       >
-        {/* Un error de pantalla no tumba el menú: se muestra acá con su detalle */}
-        <ErrorBoundary
-          fallbackRender={({ error }) => (
-            <div className="rounded-xl border bg-card p-6">
-              <ErrorDetalle
-                reporte={construirReporte(error, {
-                  pantalla: window.location.hash || window.location.pathname,
-                })}
-              />
-            </div>
-          )}
+        Saltar al contenido
+      </a>
+      <AppSidebar />
+      <SidebarInset>
+        <div className="flex h-10 items-center px-2 md:hidden">
+          <SidebarTrigger aria-label="Abrir el menú" />
+        </div>
+        <main
+          id="contenido-principal"
+          className="mx-auto w-full max-w-screen-xl p-4"
         >
-          <Suspense fallback={<Skeleton className="h-12 w-full" />}>
-            <Contenido>{children}</Contenido>
-          </Suspense>
-        </ErrorBoundary>
-      </main>
-    </SidebarInset>
-    <Notification />
-    <GlobalErrorListener />
-    <AsistenteFlotante />
-  </SidebarProvider>
-);
+          {/* Un error de pantalla no tumba el menú: se muestra acá con su detalle */}
+          <ErrorBoundary
+            fallbackRender={({ error }) => (
+              <div className="rounded-xl border bg-card p-6">
+                <ErrorDetalle
+                  reporte={construirReporte(error, {
+                    pantalla: window.location.hash || window.location.pathname,
+                  })}
+                />
+              </div>
+            )}
+          >
+            <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+              <Contenido>{children}</Contenido>
+            </Suspense>
+          </ErrorBoundary>
+        </main>
+      </SidebarInset>
+      <Notification />
+      <GlobalErrorListener />
+      <AsistenteFlotante />
+    </SidebarProvider>
+  );
+};

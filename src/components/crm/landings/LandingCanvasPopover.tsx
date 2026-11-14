@@ -1,12 +1,7 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useTranslate } from "ra-core";
-import { type ReactNode, type RefObject, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
 
 import {
   CHOICE_FIELD_TYPES,
@@ -43,62 +38,52 @@ export type CanvasPopoverState =
   | { kind: "add-field"; anchor: string };
 
 /**
- * Where an element of the canvas is, in the coordinates of the editor: the
- * frame is scaled, and its elements are looked up again after every render.
+ * Panel de opciones del elemento elegido en el lienzo. Va acoplado a la
+ * derecha del lienzo (a pantalla completa en alto y con scroll propio), no
+ * flotando sobre la página: así nunca queda recortado ni tapa lo que se edita.
+ * En pantallas angostas sube desde abajo.
  */
-const useFrameAnchor = (
-  frameRef: RefObject<HTMLIFrameElement | null>,
-  selector: string,
-) => {
-  const last = useRef<DOMRect | null>(null);
-  return useMemo(
-    () => ({
-      current: {
-        getBoundingClientRect: () => {
-          const frame = frameRef.current;
-          const element = frame?.contentDocument?.querySelector(selector);
-          if (!frame || !element) return last.current ?? new DOMRect();
-          const outer = frame.getBoundingClientRect();
-          const scale = frame.offsetWidth ? outer.width / frame.offsetWidth : 1;
-          const box = element.getBoundingClientRect();
-          last.current = new DOMRect(
-            outer.left + box.left * scale,
-            outer.top + box.top * scale,
-            box.width * scale,
-            box.height * scale,
-          );
-          return last.current;
-        },
-      },
-    }),
-    [frameRef, selector],
-  );
-};
-
-export const LandingCanvasPopover = ({
-  frameRef,
-  anchor,
+export const LandingCanvasPanel = ({
   onClose,
   children,
 }: {
-  frameRef: RefObject<HTMLIFrameElement | null>;
-  anchor: string;
   onClose: () => void;
   children: ReactNode;
 }) => {
-  const anchorRef = useFrameAnchor(frameRef, anchor);
+  const translate = useTranslate();
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    ref.current?.focus({ preventScroll: true });
+  }, []);
   return (
-    <Popover open onOpenChange={(open) => !open && onClose()}>
-      <PopoverAnchor virtualRef={anchorRef} />
-      <PopoverContent
-        align="start"
-        collisionPadding={12}
-        className="max-h-(--radix-popover-content-available-height) w-80 overflow-y-auto"
-        onCloseAutoFocus={(event) => event.preventDefault()}
-      >
-        {children}
-      </PopoverContent>
-    </Popover>
+    <aside
+      ref={ref}
+      tabIndex={-1}
+      aria-label={translate(`${EDITOR}.canvas.panel`, {
+        _: "Opciones del elemento",
+      })}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}
+      className="fixed inset-x-0 bottom-0 z-40 flex max-h-[65dvh] flex-col border-t bg-card shadow-2xl outline-none lg:static lg:z-auto lg:max-h-none lg:w-80 lg:shrink-0 lg:rounded-lg lg:border lg:shadow-none"
+    >
+      <div className="flex items-center justify-between border-b px-4 py-1.5">
+        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {translate(`${EDITOR}.canvas.panel`, { _: "Opciones" })}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label={translate("ra.action.close", { _: "Cerrar" })}
+          onClick={onClose}
+        >
+          <X />
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+    </aside>
   );
 };
 

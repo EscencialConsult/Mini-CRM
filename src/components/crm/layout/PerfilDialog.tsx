@@ -71,7 +71,9 @@ const SeccionDatos = ({ usuario }: { usuario: Usuario }) => {
       }}
       className="space-y-4"
     >
-      <h3 className="text-sm font-medium">Mis datos</h3>
+      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Mis datos
+      </h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput source="nombre" label="Nombre" validate={required()} />
         <TextInput source="apellido" label="Apellido" validate={required()} />
@@ -115,7 +117,9 @@ const SeccionClave = () => {
       }}
       className="space-y-4"
     >
-      <h3 className="text-sm font-medium">Cambiar contraseña</h3>
+      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Cambiar contraseña
+      </h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput
           source="password"

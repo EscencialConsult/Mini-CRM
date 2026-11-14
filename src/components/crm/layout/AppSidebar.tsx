@@ -1,20 +1,4 @@
-import {
-  Building2,
-  Columns3,
-  Globe,
-  HandCoins,
-  Home,
-  ListChecks,
-  Megaphone,
-  Package,
-  ScrollText,
-  ShoppingBag,
-  Tags,
-  User,
-  UserCog,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { User } from "lucide-react";
 import { useUserMenu } from "ra-core";
 import { useState } from "react";
 import { Link, matchPath, useLocation } from "react-router";
@@ -37,8 +21,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import logoClaro from "@/assets/logo_atomic_crm_light.svg";
-import logoOscuro from "@/assets/logo_atomic_crm_dark.svg";
+import logo from "@/assets/logo.webp";
 
 import type { Modulo } from "../domain/modulos";
 import { nombreDe, ROLES } from "../domain/options";
@@ -48,10 +31,26 @@ import {
   useEsPlataforma,
   useModulos,
 } from "../providers/authProvider";
-import { APP_TITLE } from "../root/config";
+import {
+  IconoActividades,
+  IconoAuditoria,
+  IconoCanales,
+  IconoClientes,
+  IconoCuentas,
+  IconoEtiquetas,
+  IconoInicio,
+  IconoLandings,
+  IconoOportunidades,
+  IconoPedidos,
+  IconoProductos,
+  IconoUsuarios,
+  IconoVentas,
+  type IconoMarca,
+} from "./IconosMarca";
 import { PerfilDialog } from "./PerfilDialog";
 import { RemindersBell } from "./RemindersBell";
 import { useRecordatorios } from "./useRecordatorios";
+import { Wordmark } from "./Wordmark";
 
 interface ItemNavegacion {
   /** Sin módulo: solo el administrador (Usuarios, Canales). */
@@ -60,7 +59,7 @@ interface ItemNavegacion {
   soloPlataforma?: boolean;
   to: string;
   etiqueta: string;
-  Icono: LucideIcon;
+  Icono: IconoMarca;
   activo: boolean;
   /** Cantidad pendiente (punto rojo / globo). */
   aviso?: number;
@@ -106,42 +105,42 @@ export const AppSidebar = () => {
         modulo: "panel",
         to: "/",
         etiqueta: "Panel",
-        Icono: Home,
+        Icono: IconoInicio,
         activo: pathname === "/",
       },
       {
         modulo: "clientes",
         to: "/clientes",
         etiqueta: "Clientes",
-        Icono: Users,
+        Icono: IconoClientes,
         activo: estaEn("/clientes"),
       },
       {
         modulo: "oportunidades",
         to: "/oportunidades",
         etiqueta: "Tablero",
-        Icono: Columns3,
+        Icono: IconoOportunidades,
         activo: estaEn("/oportunidades"),
       },
       {
         modulo: "pedidos",
         to: "/pedidos",
         etiqueta: "Pedidos",
-        Icono: ShoppingBag,
+        Icono: IconoPedidos,
         activo: estaEn("/pedidos"),
       },
       {
         modulo: "ventas",
         to: "/ventas",
         etiqueta: "Ventas",
-        Icono: HandCoins,
+        Icono: IconoVentas,
         activo: estaEn("/ventas"),
       },
       {
         modulo: "actividades",
         to: "/actividades",
         etiqueta: "Tareas",
-        Icono: ListChecks,
+        Icono: IconoActividades,
         activo: estaEn("/actividades"),
         aviso: conteo.actividades_vencidas,
       },
@@ -149,7 +148,7 @@ export const AppSidebar = () => {
         modulo: "landings",
         to: "/landings",
         etiqueta: "Landings",
-        Icono: Globe,
+        Icono: IconoLandings,
         activo: estaEn("/landings"),
       },
     ] satisfies ItemNavegacion[]
@@ -160,59 +159,46 @@ export const AppSidebar = () => {
         soloPlataforma: true,
         to: "/cuentas",
         etiqueta: "Cuentas",
-        Icono: Building2,
+        Icono: IconoCuentas,
         activo: estaEn("/cuentas"),
       },
       {
         to: "/usuarios",
         etiqueta: "Usuarios",
-        Icono: UserCog,
+        Icono: IconoUsuarios,
         activo: estaEn("/usuarios"),
       },
       {
         modulo: "productos",
         to: "/productos",
         etiqueta: "Productos",
-        Icono: Package,
+        Icono: IconoProductos,
         activo: estaEn("/productos"),
       },
       {
         to: "/canales",
         etiqueta: "Canales",
-        Icono: Megaphone,
+        Icono: IconoCanales,
         activo: estaEn("/canales"),
       },
       {
         modulo: "etiquetas",
         to: "/etiquetas",
         etiqueta: "Etiquetas",
-        Icono: Tags,
+        Icono: IconoEtiquetas,
         activo: estaEn("/etiquetas"),
       },
       {
         modulo: "auditoria",
         to: "/auditoria",
         etiqueta: "Auditoría",
-        Icono: ScrollText,
+        Icono: IconoAuditoria,
         activo: estaEn("/auditoria"),
       },
     ] satisfies ItemNavegacion[]
   ).filter(visible);
 
-  const logo = (
-    <>
-      <img
-        className="size-8 shrink-0 [.dark_&]:hidden"
-        src={logoClaro}
-        alt=""
-      />
-      <img
-        className="hidden size-8 shrink-0 [.dark_&]:block"
-        src={logoOscuro}
-        alt=""
-      />
-    </>
-  );
+  const logoMarca = <img className="size-10 shrink-0" src={logo} alt="" />;
 
   const renderGrupo = (items: ItemNavegacion[], etiquetaGrupo: string) =>
     items.length > 0 && (
@@ -225,7 +211,7 @@ export const AppSidebar = () => {
                   asChild
                   isActive={activo}
                   tooltip={etiqueta}
-                  className="relative h-10 gap-3 px-3 text-[15px] font-medium group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:p-0! [&>svg]:size-5"
+                  className="relative h-10 gap-3 px-3 text-[15px] font-medium before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-marca before:opacity-0 data-[active=true]:before:opacity-100 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:p-0! [&>svg]:size-5"
                 >
                   <Link to={to} aria-current={activo ? "page" : undefined}>
                     <Icono />
@@ -260,8 +246,8 @@ export const AppSidebar = () => {
             to="/"
             className="flex min-w-0 items-center gap-3 text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
           >
-            {logo}
-            <span className="truncate text-xl font-semibold">{APP_TITLE}</span>
+            {logoMarca}
+            <Wordmark className="truncate text-2xl" />
           </Link>
           <SidebarTrigger
             className="size-9 shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
@@ -274,7 +260,7 @@ export const AppSidebar = () => {
             aria-label="Desplegar el menú"
             className="hidden size-11 cursor-pointer items-center justify-center rounded-md hover:bg-sidebar-accent group-data-[collapsible=icon]:flex"
           >
-            {logo}
+            {logoMarca}
           </button>
         </SidebarHeader>
 

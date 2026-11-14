@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import {
@@ -23,13 +22,14 @@ import type {
 type Tono = "neutro" | "exito" | "aviso" | "peligro" | "info";
 
 const TONOS: Record<Tono, string> = {
-  neutro: "border-transparent bg-muted text-muted-foreground",
-  exito: "border-transparent bg-success/15 text-success",
-  aviso: "border-transparent bg-warning/20 text-warning-foreground",
-  peligro: "border-transparent bg-destructive/15 text-destructive",
-  info: "border-transparent bg-primary/10 text-primary",
+  neutro: "text-muted-foreground",
+  exito: "text-success",
+  aviso: "text-warning-foreground",
+  peligro: "text-destructive",
+  info: "text-primary",
 };
 
+/** Estado: un punto de color y el texto, sin fondo (más sobrio en una tabla larga). */
 export const Pill = ({
   tono = "neutro",
   children,
@@ -39,9 +39,16 @@ export const Pill = ({
   children: ReactNode;
   className?: string;
 }) => (
-  <Badge variant="outline" className={cn(TONOS[tono], className)}>
+  <span
+    className={cn(
+      "inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap",
+      TONOS[tono],
+      className,
+    )}
+  >
+    <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
     {children}
-  </Badge>
+  </span>
 );
 
 export const EstadoClienteBadge = ({ estado }: { estado: EstadoCliente }) => (

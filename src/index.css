@@ -1,11 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/exo-2";
+@import "@fontsource-variable/jost";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Títulos: Exo 2. Subtítulos: Futura (o Jost, su equivalente libre). Hasta que
+     las fuentes estén cargadas caen en Inter. */
+  --font-titulo:
+    "Exo 2 Variable", "Exo 2", "Inter Variable", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-subtitulo:
+    "Futura", "Jost Variable", "Jost", "Inter Variable", ui-sans-serif,
+    system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -59,56 +69,67 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+  Paleta: #000000 · #1a181d · #fefeff · #e17bd7 (rosa) · #6b1e13 (burdeos)
+          #e4c76a (dorado) · #a4a8c0 · #c6c9d7 (lavandas)
+  Claro: base #fefeff, texto #1a181d. El rosa de marca se oscurece (primary) para
+  que el texto/enlaces cumplan contraste sobre fondo claro.
+  Oscuro: base #1a181d, barra lateral #000000, acento rosa #e17bd7.
+*/
 :root {
-  --radius: 0.8rem;
-  --background: oklch(0.985 0.006 155);
-  --foreground: oklch(0.22 0.025 165);
+  --radius: 0.5rem;
+  /* Degradé de marca, tomado del isotipo: turquesa → lavanda → rosa */
+  --marca-1: #63e2e2;
+  --marca-2: #b99bdc;
+  --marca-3: #e46fd0;
+  --background: oklch(0.972 0.005 285);
+  --foreground: #1a181d;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.025 165);
+  --card-foreground: #1a181d;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.025 165);
-  --primary: oklch(0.48 0.12 166);
-  --primary-foreground: oklch(0.99 0.005 155);
-  --secondary: oklch(0.95 0.018 155);
-  --secondary-foreground: oklch(0.3 0.045 165);
-  --muted: oklch(0.96 0.01 155);
-  --muted-foreground: oklch(0.52 0.025 165);
-  --accent: oklch(0.94 0.025 155);
-  --accent-foreground: oklch(0.3 0.045 165);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.012 155);
-  --input: oklch(0.91 0.012 155);
-  --ring: oklch(0.62 0.12 166);
-  --rating: oklch(0.828 0.189 84.429);
+  --popover-foreground: #1a181d;
+  --primary: oklch(0.52 0.19 331);
+  --primary-foreground: #fefeff;
+  --secondary: oklch(0.95 0.008 276);
+  --secondary-foreground: #1a181d;
+  --muted: oklch(0.96 0.006 276);
+  --muted-foreground: oklch(0.49 0.035 278);
+  --accent: oklch(0.94 0.006 285);
+  --accent-foreground: #1a181d;
+  --destructive: #6b1e13;
+  --border: oklch(0.9 0.012 276);
+  --input: oklch(0.88 0.014 276);
+  --ring: #e17bd7;
+  --rating: #e4c76a;
   --whatsapp: oklch(0.6 0.16 150);
   --success: oklch(0.55 0.15 150);
-  --warning: oklch(0.85 0.15 85);
-  --warning-foreground: oklch(0.4 0.09 70);
-  --viz-1: #2a78d6;
+  --warning: #e4c76a;
+  --warning-foreground: oklch(0.4 0.08 92);
+  --viz-1: oklch(0.62 0.19 331);
   /* Etiquetas de clientes: texto y punto; el fondo es el mismo color al 15% */
-  --etiqueta-gris: oklch(0.5 0.02 250);
+  --etiqueta-gris: oklch(0.5 0.03 278);
   --etiqueta-rojo: oklch(0.55 0.2 25);
   --etiqueta-naranja: oklch(0.58 0.17 50);
-  --etiqueta-ambar: oklch(0.56 0.12 75);
+  --etiqueta-ambar: oklch(0.56 0.12 85);
   --etiqueta-verde: oklch(0.52 0.14 150);
   --etiqueta-turquesa: oklch(0.52 0.1 195);
   --etiqueta-azul: oklch(0.52 0.16 255);
   --etiqueta-violeta: oklch(0.52 0.18 300);
-  --etiqueta-rosa: oklch(0.56 0.19 350);
-  --viz-2: #eb6834;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.975 0.008 155);
-  --sidebar-foreground: oklch(0.22 0.025 165);
-  --sidebar-primary: oklch(0.48 0.12 166);
-  --sidebar-primary-foreground: oklch(0.99 0.005 155);
-  --sidebar-accent: oklch(0.94 0.025 155);
-  --sidebar-accent-foreground: oklch(0.3 0.045 165);
-  --sidebar-border: oklch(0.91 0.012 155);
-  --sidebar-ring: oklch(0.62 0.12 166);
+  --etiqueta-rosa: oklch(0.56 0.19 335);
+  --viz-2: #d4b24a;
+  --chart-1: #e17bd7;
+  --chart-2: #e4c76a;
+  --chart-3: #a4a8c0;
+  --chart-4: #6b1e13;
+  --chart-5: #c6c9d7;
+  --sidebar: oklch(0.97 0.006 280);
+  --sidebar-foreground: #1a181d;
+  --sidebar-primary: oklch(0.52 0.19 331);
+  --sidebar-primary-foreground: #fefeff;
+  --sidebar-accent: oklch(0.93 0.006 285);
+  --sidebar-accent-foreground: #1a181d;
+  --sidebar-border: oklch(0.9 0.012 276);
+  --sidebar-ring: #e17bd7;
   --avatar-0: oklch(0.85 0.08 240);
   --avatar-1: oklch(0.88 0.1 340);
   --avatar-2: oklch(0.85 0.07 180);
@@ -122,53 +143,53 @@
 }
 
 .dark {
-  --background: oklch(0.17 0.018 165);
-  --foreground: oklch(0.96 0.01 155);
-  --card: oklch(0.21 0.02 165);
-  --card-foreground: oklch(0.96 0.01 155);
-  --popover: oklch(0.21 0.02 165);
-  --popover-foreground: oklch(0.96 0.01 155);
-  --primary: oklch(0.72 0.12 164);
-  --primary-foreground: oklch(0.18 0.03 165);
-  --secondary: oklch(0.27 0.025 165);
-  --secondary-foreground: oklch(0.96 0.01 155);
-  --muted: oklch(0.25 0.02 165);
-  --muted-foreground: oklch(0.72 0.02 165);
-  --accent: oklch(0.29 0.035 165);
-  --accent-foreground: oklch(0.96 0.01 155);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: #1a181d;
+  --foreground: #fefeff;
+  --card: oklch(0.25 0.012 304);
+  --card-foreground: #fefeff;
+  --popover: oklch(0.25 0.012 304);
+  --popover-foreground: #fefeff;
+  --primary: #e17bd7;
+  --primary-foreground: #000000;
+  --secondary: oklch(0.3 0.015 300);
+  --secondary-foreground: #fefeff;
+  --muted: oklch(0.28 0.012 304);
+  --muted-foreground: #a4a8c0;
+  --accent: oklch(0.31 0.012 304);
+  --accent-foreground: #fefeff;
+  --destructive: oklch(0.68 0.17 28);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.7 0.12 164);
-  --rating: oklch(0.769 0.188 70.08);
+  --ring: #e17bd7;
+  --rating: #e4c76a;
   --whatsapp: oklch(0.72 0.16 150);
   --success: oklch(0.7 0.15 150);
-  --warning: oklch(0.45 0.09 80);
-  --warning-foreground: oklch(0.88 0.13 85);
-  --viz-1: #3987e5;
-  --etiqueta-gris: oklch(0.75 0.02 250);
+  --warning: oklch(0.45 0.07 92);
+  --warning-foreground: #e4c76a;
+  --viz-1: #e17bd7;
+  --etiqueta-gris: oklch(0.75 0.03 278);
   --etiqueta-rojo: oklch(0.74 0.15 25);
   --etiqueta-naranja: oklch(0.78 0.14 55);
-  --etiqueta-ambar: oklch(0.82 0.13 85);
+  --etiqueta-ambar: oklch(0.82 0.12 92);
   --etiqueta-verde: oklch(0.76 0.14 150);
   --etiqueta-turquesa: oklch(0.78 0.1 195);
   --etiqueta-azul: oklch(0.75 0.13 255);
   --etiqueta-violeta: oklch(0.76 0.14 300);
-  --etiqueta-rosa: oklch(0.76 0.15 350);
-  --viz-2: #d95926;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.2 0.02 165);
-  --sidebar-foreground: oklch(0.96 0.01 155);
-  --sidebar-primary: oklch(0.72 0.12 164);
-  --sidebar-primary-foreground: oklch(0.18 0.03 165);
-  --sidebar-accent: oklch(0.29 0.035 165);
-  --sidebar-accent-foreground: oklch(0.96 0.01 155);
+  --etiqueta-rosa: oklch(0.76 0.15 335);
+  --viz-2: #e4c76a;
+  --chart-1: #e17bd7;
+  --chart-2: #e4c76a;
+  --chart-3: #a4a8c0;
+  --chart-4: oklch(0.6 0.14 31);
+  --chart-5: #c6c9d7;
+  --sidebar: #000000;
+  --sidebar-foreground: #fefeff;
+  --sidebar-primary: #e17bd7;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: oklch(0.24 0.01 304);
+  --sidebar-accent-foreground: #fefeff;
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.7 0.12 164);
+  --sidebar-ring: #e17bd7;
   --avatar-0: oklch(0.35 0.12 240);
   --avatar-1: oklch(0.38 0.14 340);
   --avatar-2: oklch(0.35 0.11 180);
@@ -179,6 +200,34 @@
   --avatar-7: oklch(0.38 0.14 10);
   --avatar-8: oklch(0.4 0.11 80);
   --avatar-9: oklch(0.36 0.13 270);
+}
+
+/* Fondo con el degradé de marca (botón principal); el texto va siempre oscuro. */
+@utility bg-marca {
+  background-image: linear-gradient(
+    115deg,
+    var(--marca-1),
+    var(--marca-2) 55%,
+    var(--marca-3)
+  );
+}
+
+/* Solo para el botón del login: al pasar el mouse el degradé se desliza.
+   Se usa con `!` para pisar el fondo estático de bg-marca. */
+@utility marca-desliza {
+  background-image: linear-gradient(
+    90deg,
+    var(--marca-1) 0%,
+    var(--marca-2) 25%,
+    var(--marca-3) 50%,
+    var(--marca-2) 75%,
+    var(--marca-1) 100%
+  );
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  &:hover {
+    background-position: 100% 50%;
+  }
 }
 
 a,
@@ -231,12 +280,27 @@ input[type="time"] {
     @apply bg-background text-foreground font-sans;
   }
   ::selection {
-    background: oklch(0.48 0.12 166 / 18%);
+    background: oklch(0.727 0.169 331 / 25%);
   }
 }
 
 body {
   font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+[data-slot="card-title"],
+[data-slot="dialog-title"],
+[data-slot="sheet-title"] {
+  font-family: var(--font-titulo);
+}
+
+[data-slot="card-description"],
+[data-slot="dialog-description"],
+[data-slot="sheet-description"] {
+  font-family: var(--font-subtitulo);
 }
 
 /* The mobile pull-to-refresh (see layout/PullToRefresh.tsx) owns the overscroll

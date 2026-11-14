@@ -17,7 +17,7 @@ export const SeccionFormulario = ({
     >
       <h3
         id={id}
-        className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+        className="font-subtitulo text-xs font-semibold tracking-wide text-muted-foreground uppercase"
       >
         {titulo}
       </h3>

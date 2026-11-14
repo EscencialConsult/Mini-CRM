@@ -2,17 +2,69 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Tabla con scroll horizontal. Cuando no entra, la barra de desplazamiento se
+ * ofrece también ARRIBA (pegada al borde superior al bajar la página), para no
+ * tener que ir hasta el final de la tabla a deslizar. Las dos barras se mueven
+ * juntas; la de abajo se oculta porque la de arriba la reemplaza.
+ */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const contenedor = React.useRef<HTMLDivElement>(null)
+  const barraSuperior = React.useRef<HTMLDivElement>(null)
+  const [anchoTotal, setAnchoTotal] = React.useState(0)
+  const [desborda, setDesborda] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = contenedor.current
+    if (!el) return
+    const medir = () => {
+      setAnchoTotal(el.scrollWidth)
+      setDesborda(el.scrollWidth > el.clientWidth + 1)
+    }
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(el)
+    if (el.firstElementChild) observador.observe(el.firstElementChild)
+    return () => observador.disconnect()
+  }, [])
+
+  const sincronizar = (
+    origen: HTMLDivElement | null,
+    destino: HTMLDivElement | null
+  ) => {
+    if (origen && destino && destino.scrollLeft !== origen.scrollLeft) {
+      destino.scrollLeft = origen.scrollLeft
+    }
+  }
+
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
-      <table
-        data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+    <div className="w-full">
+      <div
+        ref={barraSuperior}
+        aria-hidden="true"
+        onScroll={() => sincronizar(barraSuperior.current, contenedor.current)}
+        className={cn(
+          "themed-scrollbar sticky top-0 z-10 overflow-x-auto overflow-y-hidden bg-card",
+          !desborda && "hidden"
+        )}
+      >
+        <div className="h-px" style={{ width: anchoTotal }} />
+      </div>
+      <div
+        ref={contenedor}
+        data-slot="table-container"
+        onScroll={() => sincronizar(contenedor.current, barraSuperior.current)}
+        className={cn(
+          "relative w-full overflow-x-auto",
+          desborda && "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        )}
+      >
+        <table
+          data-slot="table"
+          className={cn("w-full caption-bottom text-[13px]", className)}
+          {...props}
+        />
+      </div>
     </div>
   )
 }
@@ -68,7 +120,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "font-subtitulo text-muted-foreground h-9 px-3 text-left align-middle text-xs font-medium tracking-wide uppercase whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -81,7 +133,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-3 py-2 align-middle tabular-nums whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

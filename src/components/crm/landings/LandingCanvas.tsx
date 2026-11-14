@@ -15,7 +15,10 @@ import { useElementSize } from "@/hooks/use-element-size";
 import { cn } from "@/lib/utils";
 
 import { useProductos } from "../productos/useProductos";
-import { type ProductosVistaPrevia, renderLandingPage } from "./pagina/render.ts";
+import {
+  type ProductosVistaPrevia,
+  renderLandingPage,
+} from "./pagina/render.ts";
 import {
   type LandingContent,
   type LandingSectionType,
@@ -41,7 +44,7 @@ import {
   type CanvasPopoverState,
   FieldSettings,
   ImagePicker,
-  LandingCanvasPopover,
+  LandingCanvasPanel,
   QuestionPicker,
   SectionPicker,
   VideoPicker,
@@ -189,7 +192,6 @@ export const LandingCanvas = ({
 
   useEffect(() => {
     if (!doc) return;
-    const view = doc.defaultView;
 
     const openSlot = (slot: HTMLElement) => {
       const image = slot.dataset.image;
@@ -411,7 +413,7 @@ export const LandingCanvas = ({
       selectTimer = window.setTimeout(() => selectTodo(element), 0);
     };
 
-    // Pressing or scrolling the canvas closes what was open over it
+    // Pressing the canvas closes the options panel (scrolling it does not)
     const closePopover = () => {
       if (latest.current.popover) setPopover(null);
     };
@@ -438,8 +440,6 @@ export const LandingCanvas = ({
     doc.addEventListener("pointerdown", handlePointerDown);
     doc.addEventListener("submit", preventDefault);
     doc.addEventListener("dragstart", preventDefault);
-    view?.addEventListener("wheel", closePopover, { passive: true });
-    view?.addEventListener("touchmove", closePopover, { passive: true });
     return () => {
       window.clearTimeout(selectTimer);
       doc.removeEventListener("click", handleClick);
@@ -449,8 +449,6 @@ export const LandingCanvas = ({
       doc.removeEventListener("pointerdown", handlePointerDown);
       doc.removeEventListener("submit", preventDefault);
       doc.removeEventListener("dragstart", preventDefault);
-      view?.removeEventListener("wheel", closePopover);
-      view?.removeEventListener("touchmove", closePopover);
     };
   }, [doc, focusAfterWrite, scrollTo, notify]);
 
@@ -508,88 +506,88 @@ export const LandingCanvas = ({
           </Button>
         </div>
       </div>
-      <div
-        ref={paneRef}
-        className="relative min-h-0 flex-1 overflow-hidden rounded-xl border bg-muted"
-      >
-        {/* Out of the flow: its 1280px cannot widen the page around the pane */}
+      <div className="flex min-h-0 flex-1 gap-3">
         <div
-          // Measured at runtime: the page width, scaled to fit the pane
-          style={
-            {
-              "--canvas-width": `${width * scale}px`,
-              "--frame-width": `${width}px`,
-              "--frame-height": `${scale ? pane.height / scale : pane.height}px`,
-              "--frame-scale": scale,
-            } as CSSProperties
-          }
-          className={cn(
-            "absolute inset-y-0 w-(--canvas-width) overflow-hidden",
-            device === "mobile" ? "left-1/2 -translate-x-1/2" : "left-0",
-          )}
+          ref={paneRef}
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border bg-muted"
         >
-          <iframe
-            ref={frameRef}
-            title={t("canvas.title")}
-            // No allow-scripts: nothing of the page runs. Same origin only lets
-            // the editor write into the frame and listen to it.
-            sandbox="allow-same-origin"
-            srcDoc={EMPTY_PAGE}
-            onLoad={() => setDoc(frameRef.current?.contentDocument ?? null)}
-            className="h-(--frame-height) w-(--frame-width) origin-top-left scale-(--frame-scale) bg-white"
-          />
+          {/* Out of the flow: its 1280px cannot widen the page around the pane */}
+          <div
+            // Measured at runtime: the page width, scaled to fit the pane
+            style={
+              {
+                "--canvas-width": `${width * scale}px`,
+                "--frame-width": `${width}px`,
+                "--frame-height": `${scale ? pane.height / scale : pane.height}px`,
+                "--frame-scale": scale,
+              } as CSSProperties
+            }
+            className={cn(
+              "absolute inset-y-0 w-(--canvas-width) overflow-hidden",
+              device === "mobile" ? "left-1/2 -translate-x-1/2" : "left-0",
+            )}
+          >
+            <iframe
+              ref={frameRef}
+              title={t("canvas.title")}
+              // No allow-scripts: nothing of the page runs. Same origin only lets
+              // the editor write into the frame and listen to it.
+              sandbox="allow-same-origin"
+              srcDoc={EMPTY_PAGE}
+              onLoad={() => setDoc(frameRef.current?.contentDocument ?? null)}
+              className="h-(--frame-height) w-(--frame-width) origin-top-left scale-(--frame-scale) bg-white"
+            />
+          </div>
         </div>
+        {popover && (
+          <LandingCanvasPanel
+            key={popover.anchor}
+            onClose={() => setPopover(null)}
+          >
+            {popover.kind === "image" && (
+              <ImagePicker
+                label={t(
+                  popover.path === "hero.logoUrl" ? "page.logo" : "page.image",
+                )}
+                value={readText(content, popover.path)}
+                readOnly={readOnly}
+                onChange={(value) =>
+                  patch((draft) => writeText(draft, popover.path, value))
+                }
+              />
+            )}
+            {popover.kind === "video" && (
+              <VideoPicker
+                value={readText(content, popover.path)}
+                onChange={(value) =>
+                  patch((draft) => writeText(draft, popover.path, value), {
+                    mergeKey: popover.path,
+                  })
+                }
+              />
+            )}
+            {popover.kind === "field" && content.form.fields[popover.index] && (
+              <FieldSettings
+                field={content.form.fields[popover.index]}
+                index={popover.index}
+                patch={patch}
+                onRemove={() => {
+                  patch((draft) => {
+                    draft.form.fields.splice(popover.index, 1);
+                  });
+                  setPopover(null);
+                }}
+              />
+            )}
+            {popover.kind === "add-section" && (
+              <SectionPicker onPick={(type) => addSection(type, popover.at)} />
+            )}
+            {popover.kind === "add-field" && (
+              <QuestionPicker fields={content.form.fields} onPick={addField} />
+            )}
+          </LandingCanvasPanel>
+        )}
       </div>
-      {popover && (
-        <LandingCanvasPopover
-          key={popover.anchor}
-          frameRef={frameRef}
-          anchor={popover.anchor}
-          onClose={() => setPopover(null)}
-        >
-          {popover.kind === "image" && (
-            <ImagePicker
-              label={t(
-                popover.path === "hero.logoUrl" ? "page.logo" : "page.image",
-              )}
-              value={readText(content, popover.path)}
-              readOnly={readOnly}
-              onChange={(value) =>
-                patch((draft) => writeText(draft, popover.path, value))
-              }
-            />
-          )}
-          {popover.kind === "video" && (
-            <VideoPicker
-              value={readText(content, popover.path)}
-              onChange={(value) =>
-                patch((draft) => writeText(draft, popover.path, value), {
-                  mergeKey: popover.path,
-                })
-              }
-            />
-          )}
-          {popover.kind === "field" && content.form.fields[popover.index] && (
-            <FieldSettings
-              field={content.form.fields[popover.index]}
-              index={popover.index}
-              patch={patch}
-              onRemove={() => {
-                patch((draft) => {
-                  draft.form.fields.splice(popover.index, 1);
-                });
-                setPopover(null);
-              }}
-            />
-          )}
-          {popover.kind === "add-section" && (
-            <SectionPicker onPick={(type) => addSection(type, popover.at)} />
-          )}
-          {popover.kind === "add-field" && (
-            <QuestionPicker fields={content.form.fields} onPick={addField} />
-          )}
-        </LandingCanvasPopover>
-      )}
     </div>
   );
 };

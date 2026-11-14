@@ -66,7 +66,7 @@ const SettingsGroup = ({
 }) => (
   <section
     id={id}
-    className="scroll-mt-24 space-y-6 rounded-xl border bg-card p-4 sm:p-5"
+    className="scroll-mt-24 space-y-6 rounded-lg border bg-card p-4 sm:p-6"
   >
     <div className="space-y-0.5">
       <h2 className="text-base font-semibold">{title}</h2>
@@ -92,17 +92,17 @@ const SettingsIndex = () => {
   return (
     <nav
       aria-label={t("index")}
-      className="sticky top-0 z-10 rounded-xl border bg-card/95 p-2 backdrop-blur"
+      className="sticky top-0 z-10 -mx-1 overflow-x-auto bg-background px-1 py-2 lg:top-2 lg:mx-0 lg:self-start lg:overflow-visible lg:bg-transparent lg:p-0"
     >
-      <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+      <p className="hidden px-3 pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase lg:block">
         {t("index")}
       </p>
-      <ul className="flex flex-wrap gap-1">
+      <ul className="flex gap-1 lg:flex-col">
         {SETTINGS_GROUPS.map((group) => (
-          <li key={group.key}>
+          <li key={group.key} className="shrink-0 lg:shrink">
             <button
               type="button"
-              className="rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent active:bg-accent/80"
+              className="w-full rounded-md px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors hover:bg-accent active:bg-accent/80"
               onClick={() =>
                 document
                   .getElementById(group.anchor)
@@ -473,187 +473,189 @@ export const LandingSettingsTab = ({
     patch(recipe, { mergeKey: key });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-8">
+    <div className="mx-auto grid max-w-5xl gap-2 pb-8 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-8">
       <SettingsIndex />
-      <SettingsGroup
-        id={SETTINGS_ANCHORS.groupPublication}
-        title={t("groups.publication")}
-        help={t("groups_help.publication")}
-      >
-        <div id={SETTINGS_ANCHORS.checklist} className="scroll-mt-24">
-          <Checklist content={content} problems={problems} onGoTo={onGoTo} />
-        </div>
-        <div id={SETTINGS_ANCHORS.general} className="scroll-mt-24">
-          <EditorSection title={t("general")}>
-            <TextField
-              label={t("name")}
-              hint={t("name_hint")}
-              value={name}
-              error={name.trim() ? undefined : t("name_missing")}
-              onChange={onNameChange}
-            />
-            <TextField
-              label={t("slug")}
-              value={slug}
-              disabled={isLocked}
-              prefix={`${LANDINGS_HOST}/`}
-              hint={t(isLocked ? "slug_locked" : "slug_hint")}
-              error={
-                isLocked || isValidSlug(slug) ? undefined : t("slug_invalid")
-              }
-              onChange={(value) => onSlugChange(value.toLowerCase())}
-            />
-            {isLocked && (
-              <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline">
-                  <a
-                    href={landingUrl(slug)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink />
-                    {translate("resources.landings.list.open")}
-                  </a>
-                </Button>
-                <CopyButton
-                  text={landingUrl(slug)}
-                  label="resources.landings.list.copy_link"
-                />
-              </div>
-            )}
-          </EditorSection>
-        </div>
-        <div id={SETTINGS_ANCHORS.sharing} className="scroll-mt-24">
-          <EditorSection title={t("sharing")} help={t("sharing_help")}>
-            <TextField
-              label={t("seo_title")}
-              value={seo.title}
-              onChange={(value) =>
-                type("seo.title", (draft) => {
-                  draft.seo.title = value;
-                })
-              }
-            />
-            <TextField
-              label={t("seo_description")}
-              value={seo.description}
-              multiline
-              rows={2}
-              onChange={(value) =>
-                type("seo.description", (draft) => {
-                  draft.seo.description = value;
-                })
-              }
-            />
-            <ImageField
-              label={t("seo_image")}
-              value={seo.imageUrl}
-              readOnly={readOnly}
-              onChange={(value) =>
-                patch((draft) => {
-                  draft.seo.imageUrl = value;
-                })
-              }
-            />
-          </EditorSection>
-        </div>
-        <div id={SETTINGS_ANCHORS.privacy} className="scroll-mt-24">
-          <EditorSection title={t("privacy")} help={t("privacy_help")}>
-            <TextField
-              label={t("privacy_title")}
-              value={privacy.title}
-              onChange={(value) =>
-                type("privacy.title", (draft) => {
-                  draft.privacy.title = value;
-                })
-              }
-            />
-            <TextField
-              label={t("privacy_text")}
-              value={privacy.text}
-              multiline
-              rows={8}
-              onChange={(value) =>
-                type("privacy.text", (draft) => {
-                  draft.privacy.text = value;
-                })
-              }
-            />
-          </EditorSection>
-        </div>
-      </SettingsGroup>
+      <div className="min-w-0 space-y-4">
+        <SettingsGroup
+          id={SETTINGS_ANCHORS.groupPublication}
+          title={t("groups.publication")}
+          help={t("groups_help.publication")}
+        >
+          <div id={SETTINGS_ANCHORS.checklist} className="scroll-mt-24">
+            <Checklist content={content} problems={problems} onGoTo={onGoTo} />
+          </div>
+          <div id={SETTINGS_ANCHORS.general} className="scroll-mt-24">
+            <EditorSection title={t("general")}>
+              <TextField
+                label={t("name")}
+                hint={t("name_hint")}
+                value={name}
+                error={name.trim() ? undefined : t("name_missing")}
+                onChange={onNameChange}
+              />
+              <TextField
+                label={t("slug")}
+                value={slug}
+                disabled={isLocked}
+                prefix={`${LANDINGS_HOST}/`}
+                hint={t(isLocked ? "slug_locked" : "slug_hint")}
+                error={
+                  isLocked || isValidSlug(slug) ? undefined : t("slug_invalid")
+                }
+                onChange={(value) => onSlugChange(value.toLowerCase())}
+              />
+              {isLocked && (
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline">
+                    <a
+                      href={landingUrl(slug)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink />
+                      {translate("resources.landings.list.open")}
+                    </a>
+                  </Button>
+                  <CopyButton
+                    text={landingUrl(slug)}
+                    label="resources.landings.list.copy_link"
+                  />
+                </div>
+              )}
+            </EditorSection>
+          </div>
+          <div id={SETTINGS_ANCHORS.sharing} className="scroll-mt-24">
+            <EditorSection title={t("sharing")} help={t("sharing_help")}>
+              <TextField
+                label={t("seo_title")}
+                value={seo.title}
+                onChange={(value) =>
+                  type("seo.title", (draft) => {
+                    draft.seo.title = value;
+                  })
+                }
+              />
+              <TextField
+                label={t("seo_description")}
+                value={seo.description}
+                multiline
+                rows={2}
+                onChange={(value) =>
+                  type("seo.description", (draft) => {
+                    draft.seo.description = value;
+                  })
+                }
+              />
+              <ImageField
+                label={t("seo_image")}
+                value={seo.imageUrl}
+                readOnly={readOnly}
+                onChange={(value) =>
+                  patch((draft) => {
+                    draft.seo.imageUrl = value;
+                  })
+                }
+              />
+            </EditorSection>
+          </div>
+          <div id={SETTINGS_ANCHORS.privacy} className="scroll-mt-24">
+            <EditorSection title={t("privacy")} help={t("privacy_help")}>
+              <TextField
+                label={t("privacy_title")}
+                value={privacy.title}
+                onChange={(value) =>
+                  type("privacy.title", (draft) => {
+                    draft.privacy.title = value;
+                  })
+                }
+              />
+              <TextField
+                label={t("privacy_text")}
+                value={privacy.text}
+                multiline
+                rows={8}
+                onChange={(value) =>
+                  type("privacy.text", (draft) => {
+                    draft.privacy.text = value;
+                  })
+                }
+              />
+            </EditorSection>
+          </div>
+        </SettingsGroup>
 
-      <SettingsGroup
-        id={SETTINGS_ANCHORS.groupForm}
-        title={t("groups.form")}
-        help={t("groups_help.form")}
-      >
-        <FormSettings content={content} patch={patch} />
-      </SettingsGroup>
+        <SettingsGroup
+          id={SETTINGS_ANCHORS.groupForm}
+          title={t("groups.form")}
+          help={t("groups_help.form")}
+        >
+          <FormSettings content={content} patch={patch} />
+        </SettingsGroup>
 
-      <SettingsGroup
-        id={SETTINGS_ANCHORS.groupCart}
-        title={t("groups.cart")}
-        help={t("groups_help.cart")}
-      >
-        <LandingCarritoSettings
-          content={content}
-          patch={patch}
-          landing={landing}
-        />
-      </SettingsGroup>
+        <SettingsGroup
+          id={SETTINGS_ANCHORS.groupCart}
+          title={t("groups.cart")}
+          help={t("groups_help.cart")}
+        >
+          <LandingCarritoSettings
+            content={content}
+            patch={patch}
+            landing={landing}
+          />
+        </SettingsGroup>
 
-      <SettingsGroup
-        id={SETTINGS_ANCHORS.groupFollowUp}
-        title={t("groups.follow_up")}
-        help={t("groups_help.follow_up")}
-      >
-        <LandingFollowUpTab content={content} patch={patch} />
-      </SettingsGroup>
+        <SettingsGroup
+          id={SETTINGS_ANCHORS.groupFollowUp}
+          title={t("groups.follow_up")}
+          help={t("groups_help.follow_up")}
+        >
+          <LandingFollowUpTab content={content} patch={patch} />
+        </SettingsGroup>
 
-      <SettingsGroup
-        id={SETTINGS_ANCHORS.groupCampaigns}
-        title={t("groups.campaigns")}
-        help={t("groups_help.campaigns")}
-      >
-        <CampaignLinks slug={slug} />
-        <div id={SETTINGS_ANCHORS.tracking} className="scroll-mt-24">
-          <EditorSection title={t("tracking")} help={t("tracking_help")}>
-            <TextField
-              label={t("facebook_pixel")}
-              placeholder="123456789012345"
-              value={tracking.facebookPixelId}
-              error={
-                tracking.facebookPixelId &&
-                !isFacebookPixelId(tracking.facebookPixelId.trim())
-                  ? t("facebook_pixel_invalid")
-                  : undefined
-              }
-              onChange={(value) =>
-                type("tracking.facebookPixelId", (draft) => {
-                  draft.tracking.facebookPixelId = value.trim();
-                })
-              }
-            />
-            <TextField
-              label={t("google_tag")}
-              placeholder="G-XXXXXXXXXX"
-              value={tracking.googleTagId}
-              error={
-                tracking.googleTagId &&
-                !isGoogleTagId(tracking.googleTagId.trim())
-                  ? t("google_tag_invalid")
-                  : undefined
-              }
-              onChange={(value) =>
-                type("tracking.googleTagId", (draft) => {
-                  draft.tracking.googleTagId = value.trim().toUpperCase();
-                })
-              }
-            />
-          </EditorSection>
-        </div>
-      </SettingsGroup>
+        <SettingsGroup
+          id={SETTINGS_ANCHORS.groupCampaigns}
+          title={t("groups.campaigns")}
+          help={t("groups_help.campaigns")}
+        >
+          <CampaignLinks slug={slug} />
+          <div id={SETTINGS_ANCHORS.tracking} className="scroll-mt-24">
+            <EditorSection title={t("tracking")} help={t("tracking_help")}>
+              <TextField
+                label={t("facebook_pixel")}
+                placeholder="123456789012345"
+                value={tracking.facebookPixelId}
+                error={
+                  tracking.facebookPixelId &&
+                  !isFacebookPixelId(tracking.facebookPixelId.trim())
+                    ? t("facebook_pixel_invalid")
+                    : undefined
+                }
+                onChange={(value) =>
+                  type("tracking.facebookPixelId", (draft) => {
+                    draft.tracking.facebookPixelId = value.trim();
+                  })
+                }
+              />
+              <TextField
+                label={t("google_tag")}
+                placeholder="G-XXXXXXXXXX"
+                value={tracking.googleTagId}
+                error={
+                  tracking.googleTagId &&
+                  !isGoogleTagId(tracking.googleTagId.trim())
+                    ? t("google_tag_invalid")
+                    : undefined
+                }
+                onChange={(value) =>
+                  type("tracking.googleTagId", (draft) => {
+                    draft.tracking.googleTagId = value.trim().toUpperCase();
+                  })
+                }
+              />
+            </EditorSection>
+          </div>
+        </SettingsGroup>
+      </div>
     </div>
   );
 };

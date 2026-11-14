@@ -111,7 +111,7 @@ const Pie = ({
 
   return (
     // Fuera del área con scroll: queda fijo, sin saltos al llegar al final
-    <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-6 py-3 sm:flex-row sm:items-center">
+    <div className="flex shrink-0 flex-col gap-2 border-t bg-muted/40 px-6 py-3 sm:flex-row sm:items-center">
       {info && (
         <div className="min-w-0 text-xs text-muted-foreground sm:flex-1">
           {info}

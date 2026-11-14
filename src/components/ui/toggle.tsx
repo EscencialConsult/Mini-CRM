@@ -12,8 +12,8 @@ const toggleVariants = cva(
         default: "bg-transparent",
         // The selected option must stand out: bg-accent is almost white
         outline:
-          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground",
-        pill: "rounded-full border border-input bg-background transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100 data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
+          "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground data-[state=on]:border-foreground/20 data-[state=on]:bg-secondary data-[state=on]:text-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground",
+        pill: "rounded-full border border-input bg-background transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100 data-[state=on]:border-foreground/20 data-[state=on]:bg-secondary data-[state=on]:text-foreground",
       },
       size: {
         default: "h-9 px-2 min-w-9",

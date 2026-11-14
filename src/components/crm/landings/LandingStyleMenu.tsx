@@ -56,7 +56,7 @@ export const LandingStyleMenu = (props: StyleProps) => {
       <PopoverContent
         align="start"
         collisionPadding={12}
-        className="max-h-(--radix-popover-content-available-height) w-[22rem] overflow-y-auto"
+        className="max-h-(--radix-popover-content-available-height) w-[22rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto"
       >
         <StylePanel {...props} />
       </PopoverContent>

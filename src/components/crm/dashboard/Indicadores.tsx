@@ -7,7 +7,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { formatMoneda, formatNumero, plural } from "../domain/format";
@@ -35,20 +34,20 @@ const Indicador = ({
   Icono,
   onAbrir,
 }: IndicadorProps) => (
-  <Card className="py-0">
-    <button
-      type="button"
-      onClick={onAbrir}
-      className="flex h-full w-full flex-col gap-1 rounded-xl p-5 text-left transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <span className="flex items-center justify-between text-sm text-muted-foreground">
-        {titulo}
-        <Icono aria-hidden className="size-4" />
-      </span>
-      <span className="text-2xl font-semibold tracking-tight">{valor}</span>
-      <span className="text-xs text-muted-foreground">{detalle}</span>
-    </button>
-  </Card>
+  <button
+    type="button"
+    onClick={onAbrir}
+    className="flex h-full w-full flex-col gap-1 border-r border-b p-4 text-left transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+  >
+    <span className="font-subtitulo flex items-center justify-between text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      {titulo}
+      <Icono aria-hidden className="size-4" />
+    </span>
+    <span className="font-titulo text-3xl font-semibold tracking-tight">
+      {valor}
+    </span>
+    <span className="text-xs text-muted-foreground">{detalle}</span>
+  </button>
 );
 
 /** Módulos de los que el panel muestra indicadores. */
@@ -147,32 +146,39 @@ export const Indicadores = ({ rango }: { rango: RangoFechas }) => {
   return (
     <section
       aria-label="Indicadores"
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      className="overflow-hidden rounded-lg border bg-card"
     >
-      {isPending ? (
-        Array.from({ length: 5 }, (_, indice) => (
-          <Card key={indice} className="py-0">
-            <CardContent className="space-y-2 p-5" aria-busy="true">
+      <div className="-mr-px -mb-px grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))]">
+        {isPending ? (
+          Array.from({ length: 5 }, (_, indice) => (
+            <div
+              key={indice}
+              className="space-y-2 border-r border-b p-4"
+              aria-busy="true"
+            >
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-32" />
               <Skeleton className="h-3 w-40" />
-            </CardContent>
-          </Card>
-        ))
-      ) : error || !data ? (
-        <p role="alert" className="col-span-full text-sm text-destructive">
-          No se pudieron cargar los indicadores.{" "}
-          <button
-            type="button"
-            className="underline"
-            onClick={() => void refetch()}
+            </div>
+          ))
+        ) : error || !data ? (
+          <p
+            role="alert"
+            className="col-span-full border-r border-b p-5 text-sm text-destructive"
           >
-            Reintentar
-          </button>
-        </p>
-      ) : (
-        <Tarjetas datos={data} />
-      )}
+            No se pudieron cargar los indicadores.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => void refetch()}
+            >
+              Reintentar
+            </button>
+          </p>
+        ) : (
+          <Tarjetas datos={data} />
+        )}
+      </div>
     </section>
   );
 };
