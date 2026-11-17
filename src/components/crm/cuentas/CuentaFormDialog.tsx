@@ -25,7 +25,8 @@ import { SeccionFormulario } from "../shared/SeccionFormulario";
 import { RecordFormDialog } from "../shared/RecordFormDialog";
 import { ModulosInput } from "../usuarios/ModulosInput";
 import { CopiarBoton } from "./CopiarBoton";
-import type { CredencialesCuenta } from "./CredencialesCuenta";
+import { AccesoTitular } from "./AccesoTitular";
+import { accesosPendientes, type CredencialesCuenta } from "./acceso";
 import { PlanesInput } from "./PlanesInput";
 import { PLANES } from "./planes";
 import {
@@ -72,7 +73,7 @@ const CamposPlan = () => (
 interface AltaEnCurso {
   solicitud: Solicitud | null;
   etiquetas: Parameters<typeof marcarAltaHecha>[1] | null;
-  credenciales: Omit<CredencialesCuenta, "cuenta"> | null;
+  credenciales: CredencialesCuenta | null;
 }
 
 const nombreSolicitud = (solicitud: Solicitud) =>
@@ -312,13 +313,10 @@ const RestablecerClaveTitular = () => {
 export const CuentaFormDialog = ({
   id,
   onClose,
-  onCreada,
   onSolicitudCerrada,
 }: {
   id?: string;
   onClose: () => void;
-  /** Al crear una cuenta: la contraseña inicial y el teléfono, para entregárselos. */
-  onCreada?: (credenciales: CredencialesCuenta) => void;
   /** Cuando la solicitud de origen quedó marcada como dada de alta. */
   onSolicitudCerrada?: () => void;
 }) => {
@@ -334,16 +332,15 @@ export const CuentaFormDialog = ({
 
   const alCrear = (cuenta: Cuenta) => {
     const { solicitud, etiquetas, credenciales } = alta.current;
-    // Siempre al listado de cuentas (no «atrás»): se pudo llegar desde la ficha
-    // de un cliente y acá es donde se muestran las credenciales
-    navigate("/cuentas", { replace: true });
+    // La ficha de la cuenta recién creada se abre sola y muestra el acceso
+    // listo para mandar por WhatsApp (ahí también se puede volver a generar)
     if (credenciales) {
-      onCreada?.({
+      accesosPendientes.set(cuenta.id, {
         ...credenciales,
-        cuenta: cuenta.nombre,
         email: cuenta.titular?.email ?? credenciales.email,
       });
     }
+    navigate(`/cuentas/${cuenta.id}`, { replace: true });
     if (solicitud && etiquetas) {
       marcarAltaHecha(solicitud, etiquetas, cuenta.nombre)
         .then(() => onSolicitudCerrada?.())
@@ -441,6 +438,9 @@ export const CuentaFormDialog = ({
         </>
       ) : (
         <>
+          <SeccionFormulario titulo="Acceso del titular">
+            <AccesoTitular />
+          </SeccionFormulario>
           <SeccionFormulario titulo="La empresa">
             <CampoNombre />
           </SeccionFormulario>

@@ -1,7 +1,6 @@
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "ra-core";
-import { useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,6 @@ import { Pill } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
 import { useCloseRecord, useRecordRoute } from "../shared/useRecordRoute";
-import {
-  CredencialesCuentaDialog,
-  type CredencialesCuenta,
-} from "./CredencialesCuenta";
 import { CuentaFormDialog } from "./CuentaFormDialog";
 import { SolicitudesPendientes } from "./SolicitudesPendientes";
 import {
@@ -117,9 +112,6 @@ export const CuentasPage = () => {
       });
     }
   };
-  const [credenciales, setCredenciales] = useState<CredencialesCuenta | null>(
-    null,
-  );
 
   return (
     <>
@@ -158,17 +150,10 @@ export const CuentasPage = () => {
       {ruta.mode === "create" && (
         <CuentaFormDialog
           onClose={cerrar}
-          onCreada={setCredenciales}
           onSolicitudCerrada={() => {
             void recargar();
             void queryClient.invalidateQueries({ queryKey: CLAVE_SOLICITUDES });
           }}
-        />
-      )}
-      {credenciales && (
-        <CredencialesCuentaDialog
-          credenciales={credenciales}
-          onClose={() => setCredenciales(null)}
         />
       )}
       {ruta.mode === "edit" && (
