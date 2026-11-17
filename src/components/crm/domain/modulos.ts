@@ -8,6 +8,7 @@ import type { Rol } from "./types";
 export type Modulo =
   | "panel"
   | "clientes"
+  | "importacion"
   | "oportunidades"
   | "pedidos"
   | "actividades"
@@ -39,6 +40,12 @@ export const MODULOS: readonly DefinicionModulo[] = [
     nombre: "Clientes",
     descripcion: "Crear, editar y ver la ficha de clientes.",
     ruta: "/clientes",
+  },
+  {
+    id: "importacion",
+    nombre: "Carga masiva",
+    descripcion:
+      "Subir clientes y prospectos desde un archivo CSV (botón en Clientes). Requiere Clientes.",
   },
   {
     id: "oportunidades",
@@ -116,6 +123,7 @@ export const MODULOS_POR_DEFECTO: Modulo[] = [
  */
 export const REQUIERE_MODULO: Partial<Record<Modulo, Modulo>> = {
   asistente_altas: "asistente",
+  importacion: "clientes",
 };
 
 /** Módulos que no van marcados al crear una cuenta (son un extra del plan). */

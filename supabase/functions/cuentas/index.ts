@@ -13,6 +13,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 type Modulo =
   | "panel"
   | "clientes"
+  | "importacion"
   | "oportunidades"
   | "pedidos"
   | "actividades"
@@ -58,6 +59,7 @@ type AccionAuditoria = "crear" | "editar" | "activar" | "desactivar" | "restable
 const MODULOS: readonly Modulo[] = [
   "panel",
   "clientes",
+  "importacion",
   "oportunidades",
   "pedidos",
   "actividades",
@@ -108,8 +110,15 @@ const leerModulos = (valor: unknown): Modulo[] => {
   if (!Array.isArray(valor) || valor.some((modulo) => !(MODULOS as readonly unknown[]).includes(modulo))) {
     throw new HttpError(400, "Módulos inválidos", "invalid_modules");
   }
-  if (valor.includes("asistente_altas") && !valor.includes("asistente")) {
-    throw new HttpError(400, "Asistente: altas requiere el módulo Asistente", "invalid_modules");
+  // Módulos que no sirven sin otro (el complemento y su principal)
+  const requiere: [Modulo, Modulo, string][] = [
+    ["asistente_altas", "asistente", "Asistente: altas requiere el módulo Asistente"],
+    ["importacion", "clientes", "Carga masiva requiere el módulo Clientes"],
+  ];
+  for (const [complemento, principal, mensaje] of requiere) {
+    if (valor.includes(complemento) && !valor.includes(principal)) {
+      throw new HttpError(400, mensaje, "invalid_modules");
+    }
   }
   return MODULOS.filter((modulo) => valor.includes(modulo));
 };

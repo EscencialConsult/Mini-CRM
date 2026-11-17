@@ -1,10 +1,12 @@
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { useGetList } from "ra-core";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { ImportarClientesDialog } from "./importacion/ImportarClientesDialog";
 import { ESTADOS_CLIENTE, TIPOS_CLIENTE, nombreDe } from "../domain/options";
 import {
   etiquetaDocumento,
@@ -162,6 +164,7 @@ const useOpcionesLanding = () => {
 };
 
 export const ClienteList = () => {
+  const [importando, setImportando] = useState(false);
   const { identity } = useCrmIdentity();
   const { tiene } = useModulos();
   const { opcionesTodas } = useUsuarios();
@@ -232,12 +235,23 @@ export const ClienteList = () => {
         </>
       }
       acciones={
-        <Button asChild>
-          <Link to="/clientes/create">
-            <Plus />
-            Nuevo cliente
-          </Link>
-        </Button>
+        <>
+          {tiene("importacion") && (
+            <Button variant="outline" onClick={() => setImportando(true)}>
+              <Upload />
+              Cargar desde archivo
+            </Button>
+          )}
+          <Button asChild>
+            <Link to="/clientes/create">
+              <Plus />
+              Nuevo cliente
+            </Link>
+          </Button>
+          {importando && tiene("importacion") && (
+            <ImportarClientesDialog onClose={() => setImportando(false)} />
+          )}
+        </>
       }
       // Sin Tablero no ve oportunidades: la columna quedaría siempre en 0
       columnas={
