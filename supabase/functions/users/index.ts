@@ -18,7 +18,9 @@ type Modulo =
   | "ventas"
   | "landings"
   | "etiquetas"
-  | "auditoria";
+  | "auditoria"
+  | "asistente"
+  | "asistente_altas";
 
 interface PerfilUsuario {
   id: string;
@@ -64,6 +66,8 @@ const MODULOS: readonly Modulo[] = [
   "landings",
   "etiquetas",
   "auditoria",
+  "asistente",
+  "asistente_altas",
 ];
 const MODULOS_POR_DEFECTO: readonly Modulo[] = ["panel", "clientes", "oportunidades", "actividades"];
 const COLUMNAS_PERFIL = "id, cuenta_id, plataforma, nombre, apellido, email, rol, activo, modulos, sistema";
@@ -108,6 +112,10 @@ const esRol = (valor: unknown): valor is Rol =>
 const leerModulos = (valor: unknown): Modulo[] => {
   if (!Array.isArray(valor) || valor.some((modulo) => !(MODULOS as readonly unknown[]).includes(modulo))) {
     throw new HttpError(400, "Módulos inválidos", "invalid_modules");
+  }
+  // El alta por asistente no tiene sentido sin el asistente
+  if (valor.includes("asistente_altas") && !valor.includes("asistente")) {
+    throw new HttpError(400, "Asistente: altas requiere el módulo Asistente", "invalid_modules");
   }
   return MODULOS.filter((modulo) => valor.includes(modulo));
 };

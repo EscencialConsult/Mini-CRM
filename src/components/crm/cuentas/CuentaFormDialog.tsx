@@ -6,7 +6,7 @@ import { TextInput } from "@/components/admin/text-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { MODULOS } from "../domain/modulos";
+import { MODULOS, MODULOS_OPCIONALES } from "../domain/modulos";
 import type { Cuenta } from "../domain/types";
 import { validarClave, validarEmailObligatorio } from "../domain/validators";
 import { useCrmDataProvider } from "../providers/dataProvider";
@@ -15,7 +15,10 @@ import { RecordFormDialog } from "../shared/RecordFormDialog";
 import { GeneradorClave } from "../usuarios/UsuarioFormDialog";
 import { ModulosInput } from "../usuarios/ModulosInput";
 
-const TODOS_LOS_MODULOS = MODULOS.map((modulo) => modulo.id);
+// Los extras (asistente) se contratan aparte: no vienen marcados
+const MODULOS_INICIALES = MODULOS.map((modulo) => modulo.id).filter(
+  (id) => !MODULOS_OPCIONALES.includes(id),
+);
 
 const mensajeDe = (error: unknown): string =>
   error instanceof Error ? error.message : "No se pudo completar la operación";
@@ -155,7 +158,7 @@ export const CuentaFormDialog = ({
         : "Cuenta suspendida: sus usuarios no ven ni cambian datos hasta que la reactives."
     }
     mensajeGuardado="Cuenta guardada"
-    defaultValues={{ modulos: TODOS_LOS_MODULOS, max_usuarios: null }}
+    defaultValues={{ modulos: MODULOS_INICIALES, max_usuarios: null }}
     // Solo lo que se puede cambiar: el resto del registro es de lectura
     transform={(datos) => ({
       nombre: datos.nombre,

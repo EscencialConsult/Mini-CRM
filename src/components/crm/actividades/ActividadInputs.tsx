@@ -5,6 +5,7 @@ import { AutocompleteInput } from "@/components/admin/autocomplete-input";
 import { ReferenceInput } from "@/components/admin/reference-input";
 import { TextInput } from "@/components/admin/text-input";
 
+import { ClienteRapidoCrear } from "../clientes/ClienteRapidoCrear";
 import type { Oportunidad, TipoActividad } from "../domain/types";
 import { useModulos } from "../providers/authProvider";
 import { SelectInputOpcional } from "../shared/SelectInputOpcional";
@@ -89,6 +90,9 @@ export const ActividadInputs = ({ clienteFijo }: ActividadInputsProps) => {
                 label="Cliente"
                 optionText="nombre_completo"
                 validate={required()}
+                create={<ClienteRapidoCrear />}
+                createItemLabel={(texto) => `+ Crear cliente "${texto}"`}
+                createLabel="+ Crear cliente nuevo"
               />
             </ReferenceInput>
           )}

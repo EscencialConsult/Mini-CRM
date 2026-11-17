@@ -12,7 +12,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { formatMoneda } from "../domain/format";
-import { useCrmIdentity } from "../providers/authProvider";
+import { useModulos } from "../providers/authProvider";
 import { getSupabaseClient } from "../providers/supabase";
 
 type Propuesta = {
@@ -83,10 +83,10 @@ export const AsistenteFlotante = () => {
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { identity } = useCrmIdentity();
+  const { tiene } = useModulos();
 
-  // Sólo administradores activos: el servidor lo vuelve a validar.
-  if (identity?.rol !== "administrador") return null;
+  // Solo con el módulo Asistente (plan de la cuenta + asignado al usuario); el servidor lo vuelve a validar.
+  if (!tiene("asistente")) return null;
 
   const correr = async (base: Mensaje[], cuerpo: Cuerpo) => {
     setCargando(true);
@@ -160,7 +160,9 @@ export const AsistenteFlotante = () => {
           <SheetHeader className="border-b p-4">
             <SheetTitle>Asistente</SheetTitle>
             <SheetDescription>
-              Consultá el CRM y registrá prospectos en lenguaje natural.
+              {tiene("asistente_altas")
+                ? "Consultá el CRM y registrá prospectos en lenguaje natural."
+                : "Consultá el CRM en lenguaje natural."}
             </SheetDescription>
           </SheetHeader>
 
@@ -171,8 +173,10 @@ export const AsistenteFlotante = () => {
             {mensajes.length === 0 && !cargando && (
               <p className="text-sm text-muted-foreground">
                 Ejemplos: "¿qué oportunidades tengo en negociación?", "¿de qué
-                producto tengo más clientes?" o "registrá un prospecto llamado
-                Ana Gómez, interesada en Coaching ejecutivo".
+                producto tengo más clientes?"
+                {tiene("asistente_altas") &&
+                  ' o "registrá un prospecto llamado Ana Gómez, interesada en Coaching ejecutivo"'}
+                .
               </p>
             )}
             {mensajes.map((m, i) => (

@@ -1,7 +1,9 @@
-// Asistente del CRM para administradores.
+// Asistente del CRM. Es un módulo del plan de la cuenta que el administrador cede por usuario:
+//   asistente        → consultar (con el RLS de la propia persona)
+//   asistente_altas  → además, proponer y registrar prospectos
 // - Lectura: las consultas viajan con el token del propio usuario, así que aplican el RLS.
 // - Escritura: registrar_prospecto NO guarda nada. Devuelve una propuesta y el
-//   administrador la confirma desde la UI; recién entonces se inserta (con su token).
+//   persona la confirma desde la UI; recién entonces se inserta (con su token).
 export const config = { path: "/api/asistente" };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -14,12 +16,16 @@ const MAX_MENSAJES = 20;
 const MAX_CARACTERES = 2000;
 
 const SYSTEM = `Sos el asistente integrado del mini-CRM de una PyME argentina. Tu alcance es sólo este CRM.
-Podés consultar clientes, oportunidades (pipeline), productos y el ranking de clientes por producto, y proponer el alta de un prospecto. Si preguntan por otra sección, decí que todavía no podés consultarla desde el asistente.
+Podés consultar clientes, oportunidades (pipeline), productos y el ranking de clientes por producto{{ALTA_FRASE}}. Si preguntan por otra sección, decí que todavía no podés consultarla desde el asistente.
 Reglas:
 - Si la pregunta no es sobre el CRM, no la respondas. Decí en una frase que sólo ayudás con el CRM y ofrecé una consulta concreta (por ejemplo "¿cuántos clientes tengo?" o "resumen del pipeline").
 - Usá las herramientas para cualquier dato. No estimes ni inventes cifras, nombres, fechas, teléfonos ni emails. Si una herramienta no trae el dato, decilo.
-- Para registrar un prospecto usá registrar_prospecto con los datos que dio el usuario. El producto tiene que ser del catálogo: si el usuario no lo dice o no coincide, preguntale cuál es antes de proponer el alta. El alta todavía no se guarda: el administrador la confirma.
-- Respondé en español rioplatense, breve. Los importes son en pesos argentinos (ARS).`;
+{{ALTAS}}- Respondé en español rioplatense, breve. Los importes son en pesos argentinos (ARS).`;
+
+const REGLA_ALTAS =
+  "- Para registrar un prospecto usá registrar_prospecto con los datos que dio el usuario. El producto tiene que ser del catálogo: si el usuario no lo dice o no coincide, preguntale cuál es antes de proponer el alta. El alta todavía no se guarda: la persona la confirma en pantalla.\n";
+const REGLA_SIN_ALTAS =
+  "- No podés registrar ni modificar nada: esta persona sólo tiene permiso de consulta. Si pide cargar un cliente o prospecto, decile que se lo pida al administrador de su cuenta o lo cargue desde Clientes.\n";
 
 const HERRAMIENTAS = [
   {
@@ -70,7 +76,7 @@ const HERRAMIENTAS = [
   {
     name: "registrar_prospecto",
     description:
-      "Propone registrar un prospecto nuevo (cliente + oportunidad en etapa prospecto) con un producto del catálogo. No lo guarda: el administrador debe confirmarlo. Usala sólo con datos que dio el usuario.",
+      "Propone registrar un prospecto nuevo (cliente + oportunidad en etapa prospecto) con un producto del catálogo. No lo guarda: la persona debe confirmarlo. Usala sólo con datos que dio el usuario.",
     input_schema: {
       type: "object",
       properties: {
@@ -140,6 +146,27 @@ const consultar = async <T = unknown>(
   return { filas: (await res.json()) as T[], total: Number.isFinite(total) ? total : null };
 };
 
+// Error de un alta: guarda el motivo que devolvió la base para poder mostrárselo a quien lo pidió.
+class ErrorAlta extends Error {
+  constructor(
+    readonly estado: number,
+    readonly detalle: string,
+    mensaje: string,
+  ) {
+    super(mensaje);
+  }
+}
+
+// ¿Tiene este usuario el módulo (en el plan de su cuenta y asignado a él)? Lo decide la base.
+const tieneModulo = async (ctx: Contexto, modulo: string): Promise<boolean> => {
+  const res = await fetch(`${ctx.supabaseUrl}/rest/v1/rpc/tiene_modulo`, {
+    method: "POST",
+    headers: { apikey: ctx.publishableKey, Authorization: `Bearer ${ctx.jwt}`, "content-type": "application/json" },
+    body: JSON.stringify({ p_modulos: [modulo] }),
+  });
+  return res.ok && (await res.json()) === true;
+};
+
 const insertar = async <T>(ctx: Contexto, tabla: string, fila: Record<string, unknown>): Promise<T> => {
   const res = await fetch(`${ctx.supabaseUrl}/rest/v1/${tabla}`, {
     method: "POST",
@@ -151,7 +178,16 @@ const insertar = async <T>(ctx: Contexto, tabla: string, fila: Record<string, un
     },
     body: JSON.stringify(fila),
   });
-  if (!res.ok) throw new Error(`alta en ${tabla} falló (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    const cuerpo = await res.text();
+    let detalle = "";
+    try {
+      detalle = String((JSON.parse(cuerpo) as { message?: unknown }).message ?? "");
+    } catch {
+      // la respuesta no era JSON: queda solo el registro del error
+    }
+    throw new ErrorAlta(res.status, detalle, `alta en ${tabla} falló (${res.status}): ${cuerpo}`);
+  }
   const [creada] = (await res.json()) as T[];
   return creada;
 };
@@ -347,7 +383,8 @@ const registrarProspecto = async (ctx: Contexto, p: DatosConfirmados, asignado: 
       probabilidad: 10,
       resultado: "abierta",
       productos: [{ producto_id: p.productoId, cantidad: 1, descuento: 0 }],
-      asignado_a: asignado,
+      // Las oportunidades tienen varios responsables (asignados); los clientes, uno (asignado_a)
+      asignados: [asignado],
     });
   } catch (error) {
     await borrarCliente(ctx, cliente.id);
@@ -391,16 +428,23 @@ export default async (req: Request): Promise<Response> => {
   if (!usuarioRes.ok) return json({ error: "Sesión inválida" }, 401);
   const { id } = (await usuarioRes.json()) as { id: string };
 
-  // Sólo administradores activos. La UI también lo oculta, pero esta validación es la que vale.
-  const { filas: [perfil] } = await consultar(ctx, "usuarios", `select=activo,rol&id=eq.${id}`);
-  const { activo, rol } = (perfil ?? {}) as { activo?: boolean; rol?: string };
+  // Sólo usuarios activos con el módulo Asistente. Las lecturas y el alta van con el token de la
+  // persona: el RLS decide qué ve y a nombre de quién queda lo que carga.
+  const { filas: [perfil] } = await consultar(ctx, "usuarios", `select=activo&id=eq.${id}`);
+  const { activo } = (perfil ?? {}) as { activo?: boolean };
   if (!activo) return json({ error: "Usuario inactivo" }, 403);
-  if (rol !== "administrador") return json({ error: "El asistente es sólo para administradores" }, 403);
+  if (!(await tieneModulo(ctx, "asistente"))) {
+    return json({ error: "El asistente no está habilitado para tu usuario. Pedíselo al administrador de tu cuenta." }, 403);
+  }
+  const puedeCargar = await tieneModulo(ctx, "asistente_altas");
 
   const cuerpo = (await req.json().catch(() => null)) as { mensajes?: unknown; confirmar?: unknown } | null;
 
   // Confirmación de una propuesta de alta.
   if (cuerpo?.confirmar !== undefined) {
+    if (!puedeCargar) {
+      return json({ error: "No tenés permiso para registrar prospectos desde el asistente." }, 403);
+    }
     const datos = validarConfirmacion(cuerpo.confirmar);
     if (!datos) return json({ error: "Datos del prospecto inválidos" }, 400);
     try {
@@ -408,6 +452,10 @@ export default async (req: Request): Promise<Response> => {
       return json({ respuesta: `Listo: registré a ${datos.nombre} como prospecto con interés en el producto del catálogo que confirmaste.` });
     } catch (error) {
       console.error("Alta de prospecto falló", error);
+      // Un rechazo de validación de la base (4xx) trae el motivo: se muestra tal cual
+      if (error instanceof ErrorAlta && error.estado >= 400 && error.estado < 500 && error.detalle) {
+        return json({ error: `No se pudo registrar el prospecto: ${error.detalle}` }, 422);
+      }
       return json({ error: "No se pudo registrar el prospecto. Revisá los datos e intentá de nuevo." }, 500);
     }
   }
@@ -419,7 +467,13 @@ export default async (req: Request): Promise<Response> => {
     timeZone: "America/Argentina/Buenos_Aires",
     dateStyle: "full",
   });
-  const system = `${SYSTEM}\nFecha de hoy: ${hoy}.`;
+  const instrucciones = SYSTEM.replace("{{ALTA_FRASE}}", puedeCargar ? ", y proponer el alta de un prospecto" : "").replace(
+    "{{ALTAS}}",
+    puedeCargar ? REGLA_ALTAS : REGLA_SIN_ALTAS,
+  );
+  const system = `${instrucciones}\nFecha de hoy: ${hoy}.`;
+  // Sin permiso de altas la herramienta ni se le ofrece al modelo
+  const herramientas = puedeCargar ? HERRAMIENTAS : HERRAMIENTAS.filter((h) => h.name !== "registrar_prospecto");
 
   const conversacion: Mensaje[] = [...mensajes];
 
@@ -436,7 +490,7 @@ export default async (req: Request): Promise<Response> => {
         model: MODELO,
         max_tokens: 600,
         system,
-        tools: HERRAMIENTAS,
+        tools: herramientas,
         messages: conversacion,
       }),
     });
@@ -462,9 +516,9 @@ export default async (req: Request): Promise<Response> => {
     for (const bloque of data.content) {
       if (bloque.type !== "tool_use") continue;
       try {
-        if (bloque.name === "registrar_prospecto") {
+        if (bloque.name === "registrar_prospecto" && puedeCargar) {
           const r = await prepararProspecto(ctx, bloque.input ?? {});
-          // Corta acá: la alta sólo ocurre cuando el administrador la confirma.
+          // Corta acá: la alta sólo ocurre cuando la persona la confirma en pantalla.
           if ("propuesta" in r) {
             return json({ respuesta: "Revisá los datos y confirmá para registrar el prospecto.", propuesta: r.propuesta });
           }

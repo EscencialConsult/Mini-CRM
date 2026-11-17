@@ -15,13 +15,16 @@ export type Modulo =
   | "ventas"
   | "landings"
   | "etiquetas"
-  | "auditoria";
+  | "auditoria"
+  | "asistente"
+  | "asistente_altas";
 
 export interface DefinicionModulo {
   id: Modulo;
   nombre: string;
   descripcion: string;
-  ruta: string;
+  /** Pantalla propia; los complementos (como el asistente) no tienen. */
+  ruta?: string;
 }
 
 export const MODULOS: readonly DefinicionModulo[] = [
@@ -86,6 +89,18 @@ export const MODULOS: readonly DefinicionModulo[] = [
     descripcion: "Historial de cambios de todo el CRM.",
     ruta: "/auditoria",
   },
+  {
+    id: "asistente",
+    nombre: "Asistente",
+    descripcion:
+      "Consultas en lenguaje común sobre clientes, oportunidades y productos.",
+  },
+  {
+    id: "asistente_altas",
+    nombre: "Asistente: altas",
+    descripcion:
+      "Además de consultar, el asistente propone cargar prospectos y los registra al confirmar. Requiere Asistente.",
+  },
 ];
 
 export const MODULOS_POR_DEFECTO: Modulo[] = [
@@ -93,6 +108,20 @@ export const MODULOS_POR_DEFECTO: Modulo[] = [
   "clientes",
   "oportunidades",
   "actividades",
+];
+
+/**
+ * Módulos que complementan a otro: sin el principal no sirven. Al quitar el
+ * principal se quitan también; al marcar uno se marca el principal.
+ */
+export const REQUIERE_MODULO: Partial<Record<Modulo, Modulo>> = {
+  asistente_altas: "asistente",
+};
+
+/** Módulos que no van marcados al crear una cuenta (son un extra del plan). */
+export const MODULOS_OPCIONALES: readonly Modulo[] = [
+  "asistente",
+  "asistente_altas",
 ];
 
 export const nombreModulo = (id: string): string =>
@@ -123,4 +152,4 @@ export const tieneModulo = (
 
 /** Primera pantalla que puede abrir: donde aterriza si no tiene el Panel. */
 export const rutaInicial = (perfil: PerfilConModulos): string | undefined =>
-  MODULOS.find((modulo) => tieneModulo(perfil, modulo.id))?.ruta;
+  MODULOS.find((modulo) => modulo.ruta && tieneModulo(perfil, modulo.id))?.ruta;

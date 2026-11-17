@@ -20,7 +20,9 @@ type Modulo =
   | "ventas"
   | "landings"
   | "etiquetas"
-  | "auditoria";
+  | "auditoria"
+  | "asistente"
+  | "asistente_altas";
 
 interface Plataforma {
   id: string;
@@ -64,6 +66,8 @@ const MODULOS: readonly Modulo[] = [
   "landings",
   "etiquetas",
   "auditoria",
+  "asistente",
+  "asistente_altas",
 ];
 const COLUMNAS_CUENTA = "id, nombre, activa, max_usuarios, modulos, creada_en, actualizada_en";
 const MIN_CLAVE = 8;
@@ -103,6 +107,9 @@ const texto = (valor: unknown) => (typeof valor === "string" ? valor.trim() : ""
 const leerModulos = (valor: unknown): Modulo[] => {
   if (!Array.isArray(valor) || valor.some((modulo) => !(MODULOS as readonly unknown[]).includes(modulo))) {
     throw new HttpError(400, "Módulos inválidos", "invalid_modules");
+  }
+  if (valor.includes("asistente_altas") && !valor.includes("asistente")) {
+    throw new HttpError(400, "Asistente: altas requiere el módulo Asistente", "invalid_modules");
   }
   return MODULOS.filter((modulo) => valor.includes(modulo));
 };
@@ -229,7 +236,11 @@ const listarCuentas = async () => {
 
 const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => {
   const nombre = leerNombre(body.nombre);
-  const modulos = body.modulos === undefined ? [...MODULOS] : leerModulos(body.modulos);
+  // Sin indicar módulos, la cuenta nueva lleva todo menos el asistente (es un extra del plan)
+  const modulos =
+    body.modulos === undefined
+      ? MODULOS.filter((modulo) => modulo !== "asistente" && modulo !== "asistente_altas")
+      : leerModulos(body.modulos);
   const maximo = body.max_usuarios === undefined ? null : leerMaximo(body.max_usuarios);
 
   const titular = (body.titular ?? {}) as Record<string, unknown>;

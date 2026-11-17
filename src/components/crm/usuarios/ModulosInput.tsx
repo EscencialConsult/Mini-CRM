@@ -3,7 +3,7 @@ import { useWatch } from "react-hook-form";
 
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { MODULOS, type Modulo } from "../domain/modulos";
+import { MODULOS, REQUIERE_MODULO, type Modulo } from "../domain/modulos";
 import type { Rol } from "../domain/types";
 
 const Titulo = () => <legend className="text-sm font-medium">Módulos</legend>;
@@ -28,12 +28,16 @@ export const ModulosInput = ({ disponibles, plan }: ModulosInputProps) => {
     (modulo) => !disponibles || disponibles.includes(modulo.id),
   );
 
-  // Siempre en el orden del menú, sin repetidos
+  // Siempre en el orden del menú, sin repetidos. Un complemento (Asistente:
+  // altas) arrastra a su principal al marcarse y cae con él al desmarcarlo.
   const alternar = (modulo: Modulo, marcado: boolean) =>
     field.onChange(
-      MODULOS.map(({ id }) => id).filter((id) =>
-        id === modulo ? marcado : elegidos.includes(id),
-      ),
+      MODULOS.map(({ id }) => id).filter((id) => {
+        if (id === modulo) return marcado;
+        if (marcado && REQUIERE_MODULO[modulo] === id) return true;
+        if (!marcado && REQUIERE_MODULO[id] === modulo) return false;
+        return elegidos.includes(id);
+      }),
     );
 
   if (!plan && rol === "administrador") {

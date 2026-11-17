@@ -1,11 +1,4 @@
-import {
-  CircleCheckBig,
-  Hourglass,
-  Percent,
-  Receipt,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleCheckBig, Percent, Wallet, type LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,12 +23,8 @@ import {
 import { MOTIVOS_PERDIDA, nombreDe } from "../domain/options";
 import type { VentasReporte } from "../domain/types";
 import { BarrasHorizontales, type BarraDato } from "./BarrasHorizontales";
+import { GraficoCircular, type PorcionDato } from "./GraficoCircular";
 import { useVentasReporte, type FiltrosVentas } from "./filtrosVentas";
-
-const dias = (valor: number | null | undefined) =>
-  valor === null || valor === undefined
-    ? "—"
-    : `${formatNumero(valor)} ${valor === 1 ? "día" : "días"}`;
 
 const porcentaje = (valor: number | null | undefined) =>
   valor === null || valor === undefined ? "—" : formatPorcentaje(valor);
@@ -72,7 +61,7 @@ const Indicadores = ({
   if (!datos) {
     return (
       <>
-        {Array.from({ length: 5 }, (_, indice) => (
+        {Array.from({ length: 3 }, (_, indice) => (
           <Skeleton key={indice} className="h-28 rounded-xl" />
         ))}
       </>
@@ -90,21 +79,6 @@ const Indicadores = ({
       valor: formatNumero(datos.ventas),
       detalle: "Oportunidades ganadas",
       Icono: CircleCheckBig,
-    },
-    {
-      titulo: "Ticket promedio",
-      valor:
-        datos.ticket_promedio === null
-          ? "—"
-          : formatMoneda(datos.ticket_promedio),
-      detalle: "Importe promedio por venta",
-      Icono: Receipt,
-    },
-    {
-      titulo: "Ciclo promedio",
-      valor: dias(datos.ciclo_promedio),
-      detalle: "Del alta al cierre de cada venta",
-      Icono: Hourglass,
     },
     {
       titulo: "Tasa de cierre",
@@ -190,11 +164,11 @@ type Vendedor = VentasReporte["ranking"][number];
 
 const SIN_VENTAS = "No hay ventas ganadas con estos filtros.";
 
-const barraCanal = (canal: Canal): BarraDato => ({
+const porcionCanal = (canal: Canal): PorcionDato => ({
   id: String(canal.canal_id ?? "sin"),
   etiqueta: canal.nombre,
   valor: Number(canal.importe),
-  texto: `${formatMoneda(canal.importe)} · ${plural(canal.ventas, "venta", "ventas")}`,
+  texto: formatMoneda(canal.importe),
   detalle: [
     formatMoneda(canal.importe),
     plural(canal.ventas, "venta", "ventas"),
@@ -307,11 +281,6 @@ const Ranking = ({
               numero: true,
               valor: (vendedor) => porcentaje(vendedor.tasa_cierre),
             },
-            {
-              titulo: "Ciclo",
-              numero: true,
-              valor: (vendedor) => dias(vendedor.ciclo_promedio),
-            },
           ]}
         />
       )}
@@ -334,9 +303,11 @@ export const VentasReportes = ({ filtros }: { filtros: FiltrosVentas }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Indicadores datos={data?.indicadores} />
       </div>
+
+      <Ranking datos={data?.ranking ?? []} {...comunes} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
@@ -344,8 +315,8 @@ export const VentasReportes = ({ filtros }: { filtros: FiltrosVentas }) => {
           titulo="Ventas por canal"
           descripcion="Importe ganado según por dónde llegó la oportunidad."
           grafico={
-            <BarrasHorizontales
-              datos={(data?.por_canal ?? []).map(barraCanal)}
+            <GraficoCircular
+              datos={(data?.por_canal ?? []).map(porcionCanal)}
               vacio={SIN_VENTAS}
             />
           }
@@ -365,41 +336,6 @@ export const VentasReportes = ({ filtros }: { filtros: FiltrosVentas }) => {
                   titulo: "Importe",
                   numero: true,
                   valor: (canal) => formatMoneda(canal.importe),
-                },
-              ]}
-            />
-          }
-        />
-        <Ranking datos={data?.ranking ?? []} {...comunes} />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          {...comunes}
-          titulo="Productos más vendidos"
-          descripcion="Los 10 primeros de las ventas ganadas (la tabla tiene todos)."
-          grafico={<GraficoProductos productos={data?.productos ?? []} />}
-          tabla={
-            <TablaSimple<ProductoVendido>
-              filas={data?.productos ?? []}
-              clave={(producto) => String(producto.producto_id)}
-              vacio={SIN_VENTAS}
-              columnas={[
-                { titulo: "Producto", valor: (producto) => producto.nombre },
-                {
-                  titulo: "Cantidad",
-                  numero: true,
-                  valor: (producto) => formatNumero(producto.cantidad),
-                },
-                {
-                  titulo: "Ventas",
-                  numero: true,
-                  valor: (producto) => producto.ventas,
-                },
-                {
-                  titulo: "Importe",
-                  numero: true,
-                  valor: (producto) => formatMoneda(producto.importe),
                 },
               ]}
             />
@@ -440,6 +376,38 @@ export const VentasReportes = ({ filtros }: { filtros: FiltrosVentas }) => {
           }
         />
       </div>
+
+      <ChartCard
+        {...comunes}
+        titulo="Productos más vendidos"
+        descripcion="Los 10 primeros de las ventas ganadas (la tabla tiene todos)."
+        grafico={<GraficoProductos productos={data?.productos ?? []} />}
+        tabla={
+          <TablaSimple<ProductoVendido>
+            filas={data?.productos ?? []}
+            clave={(producto) => String(producto.producto_id)}
+            vacio={SIN_VENTAS}
+            columnas={[
+              { titulo: "Producto", valor: (producto) => producto.nombre },
+              {
+                titulo: "Cantidad",
+                numero: true,
+                valor: (producto) => formatNumero(producto.cantidad),
+              },
+              {
+                titulo: "Ventas",
+                numero: true,
+                valor: (producto) => producto.ventas,
+              },
+              {
+                titulo: "Importe",
+                numero: true,
+                valor: (producto) => formatMoneda(producto.importe),
+              },
+            ]}
+          />
+        }
+      />
     </div>
   );
 };

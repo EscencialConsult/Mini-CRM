@@ -12,6 +12,7 @@ import {
   ENTREGA_A_COORDINAR,
   ENTREGAS_PEDIDO_CON_COORDINAR,
 } from "../domain/options";
+import { ClienteRapidoCrear } from "../clientes/ClienteRapidoCrear";
 import type { Cliente, EntregaPedido, Pedido } from "../domain/types";
 import { LINEA_VACIA } from "../oportunidades/lineasProductos";
 import { LineasProductosInput } from "../oportunidades/LineasProductosInput";
@@ -66,6 +67,9 @@ const CamposPedido = () => {
             label="Cliente"
             optionText="nombre_completo"
             validate={required()}
+            create={<ClienteRapidoCrear />}
+            createItemLabel={(texto) => `+ Crear cliente "${texto}"`}
+            createLabel="+ Crear cliente nuevo"
           />
         </ReferenceInput>
         <RadioButtonGroupInput

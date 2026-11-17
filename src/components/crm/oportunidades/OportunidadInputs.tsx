@@ -10,6 +10,7 @@ import { SelectInput } from "@/components/admin/select-input";
 import { TextInput } from "@/components/admin/text-input";
 
 import { CanalInput } from "../canales/CanalInput";
+import { ClienteRapidoCrear } from "../clientes/ClienteRapidoCrear";
 import {
   ETAPAS,
   MOTIVOS_PERDIDA,
@@ -69,6 +70,9 @@ export const OportunidadInputs = ({ clienteFijo }: OportunidadInputsProps) => {
                 label="Cliente"
                 optionText="nombre_completo"
                 validate={required()}
+                create={<ClienteRapidoCrear />}
+                createItemLabel={(texto) => `+ Crear cliente "${texto}"`}
+                createLabel="+ Crear cliente nuevo"
               />
             </ReferenceInput>
           )}
