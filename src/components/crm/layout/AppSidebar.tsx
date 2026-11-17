@@ -31,6 +31,7 @@ import {
   useEsPlataforma,
   useModulos,
 } from "../providers/authProvider";
+import { useConteoSolicitudes } from "../cuentas/useSolicitudes";
 import {
   IconoActividades,
   IconoAuditoria,
@@ -90,6 +91,7 @@ export const AppSidebar = () => {
   const { tiene } = useModulos();
   const esAdministrador = useEsAdministrador();
   const esPlataforma = useEsPlataforma();
+  const solicitudesPendientes = useConteoSolicitudes(esPlataforma);
   const visible = (item: ItemNavegacion) =>
     item.soloPlataforma
       ? esPlataforma
@@ -161,6 +163,7 @@ export const AppSidebar = () => {
         etiqueta: "Cuentas",
         Icono: IconoCuentas,
         activo: estaEn("/cuentas"),
+        aviso: solicitudesPendientes,
       },
       {
         to: "/usuarios",

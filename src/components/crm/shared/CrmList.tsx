@@ -71,6 +71,8 @@ interface CrmListProps<T extends RaRecord> {
   filter?: Record<string, unknown>;
   /** Botones a la derecha del título. */
   acciones?: ReactNode;
+  /** Bloque entre el título y el listado (avisos, pendientes…). */
+  encabezado?: ReactNode;
   /** Controles de filtro junto al buscador. */
   filtros?: ReactNode;
   /** Placeholder del buscador; sin él no se muestra. */
@@ -468,6 +470,7 @@ export const CrmList = <T extends RaRecord>({
   filterDefaultValues,
   filter,
   acciones,
+  encabezado,
   pestanas,
   ...cuerpo
 }: CrmListProps<T>) => (
@@ -491,6 +494,7 @@ export const CrmList = <T extends RaRecord>({
           )}
         </header>
       )}
+      {encabezado}
       <CuerpoLista<T> {...cuerpo} pestanas={pestanas} />
     </section>
   </ListBase>

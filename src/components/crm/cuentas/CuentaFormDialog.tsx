@@ -1,7 +1,8 @@
 import { Ban, RefreshCw, RotateCcw } from "lucide-react";
 import { required, useNotify, useRecordContext } from "ra-core";
-import { useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { TextInput } from "@/components/admin/text-input";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,10 @@ const SolicitudYPlan = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
     setValue("max_usuarios", plan.maxUsuarios, marcar);
   };
 
+  const [params] = useSearchParams();
+  const pedida = params.get("solicitud");
+  const aplicada = useRef(false);
+
   const elegir = (valor: string) => {
     const solicitud = solicitudes.find((s) => String(s.clienteId) === valor);
     if (!solicitud) return;
@@ -104,6 +109,15 @@ const SolicitudYPlan = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
     setValue("whatsapp_titular", solicitud.telefono, marcar);
     aplicarPlan(PLANES[0]);
   };
+
+  // Llegó desde «Dar de alta»: la solicitud ya viene elegida y el alta, cargada
+  useEffect(() => {
+    if (aplicada.current || !pedida || solicitudes.length === 0) return;
+    if (!solicitudes.some((s) => String(s.clienteId) === pedida)) return;
+    aplicada.current = true;
+    elegir(pedida);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedida, solicitudes]);
 
   return (
     <div className="space-y-4 rounded-md border p-4">
@@ -292,13 +306,17 @@ export const CuentaFormDialog = ({
   id,
   onClose,
   onCreada,
+  onSolicitudCerrada,
 }: {
   id?: string;
   onClose: () => void;
   /** Al crear una cuenta: la contraseña inicial y el teléfono, para entregárselos. */
   onCreada?: (credenciales: CredencialesCuenta) => void;
+  /** Cuando la solicitud de origen quedó marcada como dada de alta. */
+  onSolicitudCerrada?: () => void;
 }) => {
   const notify = useNotify();
+  const navigate = useNavigate();
   // La contraseña inicial nace generada (estable mientras el diálogo está abierto)
   const [claveInicial] = useState(() => generarClave());
   const alta = useRef<AltaEnCurso>({
@@ -309,7 +327,9 @@ export const CuentaFormDialog = ({
 
   const alCrear = (cuenta: Cuenta) => {
     const { solicitud, etiquetas, credenciales } = alta.current;
-    onClose();
+    // Siempre al listado de cuentas (no «atrás»): se pudo llegar desde la ficha
+    // de un cliente y acá es donde se muestran las credenciales
+    navigate("/cuentas", { replace: true });
     if (credenciales) {
       onCreada?.({
         ...credenciales,
@@ -318,12 +338,14 @@ export const CuentaFormDialog = ({
       });
     }
     if (solicitud && etiquetas) {
-      marcarAltaHecha(solicitud, etiquetas).catch((error: unknown) =>
-        notify(
-          `La cuenta se creó, pero no se pudo actualizar la solicitud: ${mensajeDe(error)}`,
-          { type: "warning" },
-        ),
-      );
+      marcarAltaHecha(solicitud, etiquetas)
+        .then(() => onSolicitudCerrada?.())
+        .catch((error: unknown) =>
+          notify(
+            `La cuenta se creó, pero no se pudo actualizar la solicitud: ${mensajeDe(error)}`,
+            { type: "warning" },
+          ),
+        );
     }
   };
 

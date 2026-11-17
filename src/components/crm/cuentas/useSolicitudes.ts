@@ -1,7 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 
 import { normalizarTexto } from "../clientes/importacion/interpretar";
 import { getSupabaseClient } from "../providers/supabase";
+
+/** Ruta del alta con la solicitud ya elegida. */
+export const rutaAltaDesde = (clienteId: number) =>
+  `/cuentas/create?solicitud=${clienteId}`;
 
 /** Quien pidió la prueba desde la landing y todavía no tiene cuenta. */
 export interface Solicitud {
@@ -135,4 +140,50 @@ export const marcarAltaHecha = async (
     .eq("tipo", "tarea")
     .eq("completada", false);
   if (errorTareas) throw new Error(errorTareas.message);
+};
+
+/** Clave de las consultas de solicitudes: se invalida al dar de alta una. */
+export const CLAVE_SOLICITUDES = ["solicitudes-pendientes"] as const;
+
+const idEtiquetaPendiente = async (): Promise<number | null> => {
+  const { data } = await getSupabaseClient()
+    .from("etiquetas")
+    .select("id, nombre");
+  const fila = (data ?? []).find(
+    (etiqueta) =>
+      normalizarTexto(String(etiqueta.nombre)) === ETIQUETA_PENDIENTE,
+  );
+  return (fila?.id as number | undefined) ?? null;
+};
+
+/** Cuántas solicitudes esperan alta (para el aviso del menú). Solo la plataforma. */
+export const useConteoSolicitudes = (activo: boolean): number =>
+  useQuery({
+    queryKey: [...CLAVE_SOLICITUDES, "conteo"],
+    enabled: activo,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const etiqueta = await idEtiquetaPendiente();
+      if (etiqueta === null) return 0;
+      const { count } = await getSupabaseClient()
+        .from("clientes")
+        .select("id", { count: "exact", head: true })
+        .contains("etiquetas", [etiqueta]);
+      return count ?? 0;
+    },
+  }).data ?? 0;
+
+/** ¿Este cliente es una solicitud de prueba que todavía no tiene cuenta? */
+export const useEsSolicitudPendiente = (
+  etiquetas: number[] | undefined,
+  activo: boolean,
+): boolean => {
+  const { data } = useQuery({
+    queryKey: [...CLAVE_SOLICITUDES, "etiqueta"],
+    enabled: activo,
+    staleTime: 5 * 60_000,
+    queryFn: idEtiquetaPendiente,
+  });
+  return data != null && !!etiquetas?.includes(data);
 };

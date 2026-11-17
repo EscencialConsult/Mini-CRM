@@ -21,6 +21,7 @@ import {
   ClienteHistorial,
   ClienteOportunidades,
 } from "./ClienteRelacionados";
+import { AltaCuentaButton } from "../cuentas/AltaCuentaButton";
 import { ClienteInputs } from "./ClienteInputs";
 import { ClienteAvatar, ClienteResumen } from "./ClienteResumen";
 
@@ -103,7 +104,15 @@ const Contenido = ({ onClose }: { onClose: () => void }) => {
       summary={<ClienteResumen cliente={cliente} />}
       size="xl"
       onClose={onClose}
-      headerActions={<CambiarEstadoButton cliente={cliente} />}
+      headerActions={
+        <>
+          <AltaCuentaButton
+            clienteId={cliente.id}
+            etiquetas={cliente.etiquetas}
+          />
+          <CambiarEstadoButton cliente={cliente} />
+        </>
+      }
     >
       <Tabs defaultValue="datos" className="min-h-0 flex-1 gap-0">
         <TabsList className="mx-6 mt-4 w-fit max-w-[calc(100%-3rem)] overflow-x-auto">

@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -16,6 +17,8 @@ import {
   type CredencialesCuenta,
 } from "./CredencialesCuenta";
 import { CuentaFormDialog } from "./CuentaFormDialog";
+import { SolicitudesPendientes } from "./SolicitudesPendientes";
+import { CLAVE_SOLICITUDES, useSolicitudes } from "./useSolicitudes";
 
 const ESTADOS = [
   { id: "true", name: "Activas" },
@@ -90,6 +93,8 @@ const columnas: ColumnaLista<Cuenta>[] = [
 export const CuentasPage = () => {
   const ruta = useRecordRoute("cuentas");
   const cerrar = useCloseRecord("cuentas");
+  const queryClient = useQueryClient();
+  const { solicitudes, recargar } = useSolicitudes();
   const [credenciales, setCredenciales] = useState<CredencialesCuenta | null>(
     null,
   );
@@ -109,6 +114,7 @@ export const CuentasPage = () => {
             convertir={(id) => id === "true"}
           />
         }
+        encabezado={<SolicitudesPendientes solicitudes={solicitudes} />}
         acciones={
           <Button asChild>
             <Link to="/cuentas/create">
@@ -123,7 +129,14 @@ export const CuentasPage = () => {
         vacio="Todavía no hay cuentas. Creá la primera con “Nueva cuenta”."
       />
       {ruta.mode === "create" && (
-        <CuentaFormDialog onClose={cerrar} onCreada={setCredenciales} />
+        <CuentaFormDialog
+          onClose={cerrar}
+          onCreada={setCredenciales}
+          onSolicitudCerrada={() => {
+            void recargar();
+            void queryClient.invalidateQueries({ queryKey: CLAVE_SOLICITUDES });
+          }}
+        />
       )}
       {credenciales && (
         <CredencialesCuentaDialog
