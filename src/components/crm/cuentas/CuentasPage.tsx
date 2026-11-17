@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNotify } from "ra-core";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -18,7 +19,12 @@ import {
 } from "./CredencialesCuenta";
 import { CuentaFormDialog } from "./CuentaFormDialog";
 import { SolicitudesPendientes } from "./SolicitudesPendientes";
-import { CLAVE_SOLICITUDES, useSolicitudes } from "./useSolicitudes";
+import {
+  CLAVE_SOLICITUDES,
+  descartarSolicitud,
+  useSolicitudes,
+  type Solicitud,
+} from "./useSolicitudes";
 
 const ESTADOS = [
   { id: "true", name: "Activas" },
@@ -94,7 +100,23 @@ export const CuentasPage = () => {
   const ruta = useRecordRoute("cuentas");
   const cerrar = useCloseRecord("cuentas");
   const queryClient = useQueryClient();
-  const { solicitudes, recargar } = useSolicitudes();
+  const notify = useNotify();
+  const { solicitudes, etiquetas, recargar } = useSolicitudes();
+
+  const descartar = async (solicitud: Solicitud) => {
+    try {
+      await descartarSolicitud(solicitud, etiquetas);
+      await recargar();
+      void queryClient.invalidateQueries({ queryKey: CLAVE_SOLICITUDES });
+      notify("Solicitud descartada: el cliente sigue en Clientes", {
+        type: "info",
+      });
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "No se pudo descartar", {
+        type: "error",
+      });
+    }
+  };
   const [credenciales, setCredenciales] = useState<CredencialesCuenta | null>(
     null,
   );
@@ -114,7 +136,12 @@ export const CuentasPage = () => {
             convertir={(id) => id === "true"}
           />
         }
-        encabezado={<SolicitudesPendientes solicitudes={solicitudes} />}
+        encabezado={
+          <SolicitudesPendientes
+            solicitudes={solicitudes}
+            alDescartar={descartar}
+          />
+        }
         acciones={
           <Button asChild>
             <Link to="/cuentas/create">

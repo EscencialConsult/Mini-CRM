@@ -115,6 +115,14 @@ export const useSolicitudes = () => {
   return { solicitudes, etiquetas, cargando, recargar: cargar };
 };
 
+/** Deja constancia en el historial del cliente; es un extra: si falla, no se corta nada. */
+const dejarNota = async (clienteId: number, titulo: string) => {
+  const { error } = await getSupabaseClient()
+    .from("actividades")
+    .insert({ tipo: "nota", cliente_id: clienteId, titulo });
+  if (error) console.error("cuentas.nota_fallida", error);
+};
+
 /**
  * Cuando se crea la cuenta: el cliente deja de estar «Solicitó prueba» y pasa a
  * «Prueba activa», y sus tareas pendientes (la del alta) quedan hechas.
@@ -122,6 +130,7 @@ export const useSolicitudes = () => {
 export const marcarAltaHecha = async (
   solicitud: Solicitud,
   etiquetas: EtiquetasDeAlta,
+  cuenta?: string,
 ) => {
   const supabase = getSupabaseClient();
   const nuevas = solicitud.etiquetas.filter((id) => id !== etiquetas.pendiente);
@@ -140,6 +149,28 @@ export const marcarAltaHecha = async (
     .eq("tipo", "tarea")
     .eq("completada", false);
   if (errorTareas) throw new Error(errorTareas.message);
+  await dejarNota(
+    solicitud.clienteId,
+    cuenta ? `Cuenta creada: ${cuenta}` : "Cuenta creada desde la solicitud",
+  );
+};
+
+/**
+ * Una solicitud que no corresponde (repetida, de prueba, de alguien que no
+ * va a seguir): sale del panel. El cliente queda en Clientes, sin la etiqueta.
+ */
+export const descartarSolicitud = async (
+  solicitud: Solicitud,
+  etiquetas: EtiquetasDeAlta,
+) => {
+  const { error } = await getSupabaseClient()
+    .from("clientes")
+    .update({
+      etiquetas: solicitud.etiquetas.filter((id) => id !== etiquetas.pendiente),
+    })
+    .eq("id", solicitud.clienteId);
+  if (error) throw new Error(error.message);
+  await dejarNota(solicitud.clienteId, "Solicitud de prueba descartada");
 };
 
 /** Clave de las consultas de solicitudes: se invalida al dar de alta una. */

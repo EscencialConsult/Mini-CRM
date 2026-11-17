@@ -17,26 +17,22 @@ import {
 
 import { generarClave } from "../domain/claves";
 import { formatFecha } from "../domain/format";
-import { MODULOS, MODULOS_OPCIONALES } from "../domain/modulos";
 import type { Cuenta } from "../domain/types";
 import { validarClave, validarEmailObligatorio } from "../domain/validators";
 import { useCrmDataProvider } from "../providers/dataProvider";
 import { GuardarCon } from "../shared/RecordForm";
+import { SeccionFormulario } from "../shared/SeccionFormulario";
 import { RecordFormDialog } from "../shared/RecordFormDialog";
 import { ModulosInput } from "../usuarios/ModulosInput";
 import { CopiarBoton } from "./CopiarBoton";
 import type { CredencialesCuenta } from "./CredencialesCuenta";
-import { PLANES, type PlanComercial } from "./planes";
+import { PlanesInput } from "./PlanesInput";
+import { PLANES } from "./planes";
 import {
   marcarAltaHecha,
   useSolicitudes,
   type Solicitud,
 } from "./useSolicitudes";
-
-// Los extras (asistente) se contratan aparte: no vienen marcados
-const MODULOS_INICIALES = MODULOS.map((modulo) => modulo.id).filter(
-  (id) => !MODULOS_OPCIONALES.includes(id),
-);
 
 const mensajeDe = (error: unknown): string =>
   error instanceof Error ? error.message : "No se pudo completar la operación";
@@ -45,13 +41,19 @@ const mensajeDe = (error: unknown): string =>
 const aMaximo = (valor: unknown): number | null =>
   valor === "" || valor === null || valor === undefined ? null : Number(valor);
 
-const CamposComunes = () => (
+const CampoNombre = () => (
+  <TextInput
+    source="nombre"
+    label="Nombre de la cuenta"
+    validate={required()}
+    helperText="La empresa que contrata el sistema."
+  />
+);
+
+/** Plan elegido con un toque y, debajo, el ajuste fino: máximo de usuarios y módulos. */
+const CamposPlan = () => (
   <>
-    <TextInput
-      source="nombre"
-      label="Nombre de la cuenta"
-      validate={required()}
-    />
+    <PlanesInput />
     {/* TextInput y no NumberInput: este último convierte el vacío en 0 y acá vacío es «sin límite» */}
     <TextInput
       source="max_usuarios"
@@ -76,23 +78,30 @@ interface AltaEnCurso {
 const nombreSolicitud = (solicitud: Solicitud) =>
   `${solicitud.empresa || `${solicitud.nombre} ${solicitud.apellido}`.trim()} · ${formatFecha(solicitud.creadoEn)}`;
 
-/** Atajos del alta: partir de una solicitud de la landing y aplicar un plan de la propuesta. */
-const SolicitudYPlan = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
+const ALTA_MANUAL = "__manual";
+
+/**
+ * Primer paso del alta: de qué solicitud viene (o «alta manual»). Al elegir una
+ * se cargan la empresa, el titular, su WhatsApp y el plan de prueba; todo se
+ * puede corregir después.
+ */
+const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
   const { setValue } = useFormContext();
   const { solicitudes, etiquetas, cargando } = useSolicitudes();
   const [elegida, setElegida] = useState("");
   const marcar = { shouldDirty: true, shouldValidate: true };
-
-  const aplicarPlan = (plan: PlanComercial) => {
-    setValue("modulos", plan.modulos, marcar);
-    setValue("max_usuarios", plan.maxUsuarios, marcar);
-  };
 
   const [params] = useSearchParams();
   const pedida = params.get("solicitud");
   const aplicada = useRef(false);
 
   const elegir = (valor: string) => {
+    if (valor === ALTA_MANUAL) {
+      setElegida("");
+      alta.current.solicitud = null;
+      alta.current.etiquetas = null;
+      return;
+    }
     const solicitud = solicitudes.find((s) => String(s.clienteId) === valor);
     if (!solicitud) return;
     setElegida(valor);
@@ -107,7 +116,8 @@ const SolicitudYPlan = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
     setValue("titular.apellido", solicitud.apellido, marcar);
     setValue("titular.email", solicitud.email.trim().toLowerCase(), marcar);
     setValue("whatsapp_titular", solicitud.telefono, marcar);
-    aplicarPlan(PLANES[0]);
+    setValue("modulos", PLANES[0].modulos, marcar);
+    setValue("max_usuarios", PLANES[0].maxUsuarios, marcar);
   };
 
   // Llegó desde «Dar de alta»: la solicitud ya viene elegida y el alta, cargada
@@ -119,55 +129,53 @@ const SolicitudYPlan = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedida, solicitudes]);
 
+  const solicitud = solicitudes.find((s) => String(s.clienteId) === elegida);
+  const persona = solicitud
+    ? `${solicitud.nombre} ${solicitud.apellido}`.trim()
+    : "";
+
   return (
-    <div className="space-y-4 rounded-md border p-4">
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Desde una solicitud</p>
-        {cargando ? (
-          <p className="text-sm text-muted-foreground">Buscando solicitudes…</p>
-        ) : solicitudes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No hay solicitudes pendientes. Llegan desde la landing con la
-            etiqueta «Solicitó prueba».
-          </p>
-        ) : (
-          <Select value={elegida} onValueChange={elegir}>
+    <div className="space-y-3">
+      {cargando ? (
+        <p className="text-sm text-muted-foreground">Buscando solicitudes…</p>
+      ) : solicitudes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No hay solicitudes pendientes: esta es un alta manual. Las solicitudes
+          llegan desde la landing con la etiqueta «Solicitó prueba».
+        </p>
+      ) : (
+        <>
+          <Select value={elegida || ALTA_MANUAL} onValueChange={elegir}>
             <SelectTrigger aria-label="Solicitud de prueba" className="w-full">
-              <SelectValue placeholder="Elegí una solicitud para completar el alta" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {solicitudes.map((solicitud) => (
-                <SelectItem
-                  key={solicitud.clienteId}
-                  value={String(solicitud.clienteId)}
-                >
-                  {nombreSolicitud(solicitud)}
+              <SelectItem value={ALTA_MANUAL}>
+                Alta manual (sin solicitud)
+              </SelectItem>
+              {solicitudes.map((item) => (
+                <SelectItem key={item.clienteId} value={String(item.clienteId)}>
+                  {nombreSolicitud(item)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        )}
-      </div>
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Aplicar un plan</p>
-        <div className="flex flex-wrap gap-2">
-          {PLANES.map((plan) => (
-            <Button
-              key={plan.id}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => aplicarPlan(plan)}
-            >
-              {plan.nombre}
-            </Button>
-          ))}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Marca los módulos y el máximo de usuarios del plan; después los podés
-          ajustar.
+          {!solicitud && (
+            <p className="text-sm text-muted-foreground">
+              Elegí una solicitud y se completa el alta con sus datos.
+            </p>
+          )}
+        </>
+      )}
+      {solicitud && (
+        <p className="rounded-md bg-muted/60 p-3 text-sm">
+          Datos cargados de la solicitud de <strong>{persona}</strong>
+          {solicitud.empresa && ` (${solicitud.empresa})`}
+          {solicitud.telefono && ` · ${solicitud.telefono}`}. Revisalos y ajustá
+          lo que haga falta. Al crear la cuenta, la solicitud se da por
+          resuelta.
         </p>
-      </div>
+      )}
     </div>
   );
 };
@@ -199,8 +207,7 @@ const ClaveInicial = () => {
 
 /** Datos del administrador titular: la persona a la que se le habilita el acceso. */
 const CamposTitular = () => (
-  <div className="space-y-4 rounded-md border p-4">
-    <p className="text-sm font-medium">Administrador titular</p>
+  <>
     <p className="text-sm text-muted-foreground">
       Entra con su email y esta contraseña inicial. Desde «Usuarios» crea a sus
       trabajadores, con los módulos de esta cuenta.
@@ -237,7 +244,7 @@ const CamposTitular = () => (
       type="tel"
       helperText="Con código de país, por ejemplo +54 9 11 5555 1234. Sirve para enviarle el acceso al terminar."
     />
-  </div>
+  </>
 );
 
 /** Cambia la contraseña del administrador titular (si la perdió). */
@@ -338,7 +345,7 @@ export const CuentaFormDialog = ({
       });
     }
     if (solicitud && etiquetas) {
-      marcarAltaHecha(solicitud, etiquetas)
+      marcarAltaHecha(solicitud, etiquetas, cuenta.nombre)
         .then(() => onSolicitudCerrada?.())
         .catch((error: unknown) =>
           notify(
@@ -363,8 +370,8 @@ export const CuentaFormDialog = ({
       }
       mensajeGuardado="Cuenta guardada"
       defaultValues={{
-        modulos: MODULOS_INICIALES,
-        max_usuarios: null,
+        modulos: PLANES[0].modulos,
+        max_usuarios: PLANES[0].maxUsuarios,
         titular: { password: claveInicial },
       }}
       // Solo lo que se puede cambiar: el resto del registro es de lectura
@@ -397,6 +404,7 @@ export const CuentaFormDialog = ({
       }}
       onSaved={id === undefined ? alCrear : undefined}
       size="lg"
+      submitLabel={id === undefined ? "Crear cuenta" : undefined}
       onClose={onClose}
       guardadosExtra={(cuenta) =>
         cuenta &&
@@ -416,9 +424,34 @@ export const CuentaFormDialog = ({
         ))
       }
     >
-      {id === undefined && <SolicitudYPlan alta={alta} />}
-      <CamposComunes />
-      {id === undefined ? <CamposTitular /> : <RestablecerClaveTitular />}
+      {id === undefined ? (
+        <>
+          <SeccionFormulario titulo="1 · ¿De dónde viene?">
+            <OrigenSolicitud alta={alta} />
+          </SeccionFormulario>
+          <SeccionFormulario titulo="2 · La empresa">
+            <CampoNombre />
+          </SeccionFormulario>
+          <SeccionFormulario titulo="3 · El plan">
+            <CamposPlan />
+          </SeccionFormulario>
+          <SeccionFormulario titulo="4 · Administrador titular y acceso">
+            <CamposTitular />
+          </SeccionFormulario>
+        </>
+      ) : (
+        <>
+          <SeccionFormulario titulo="La empresa">
+            <CampoNombre />
+          </SeccionFormulario>
+          <SeccionFormulario titulo="El plan">
+            <CamposPlan />
+          </SeccionFormulario>
+          <SeccionFormulario titulo="Administrador titular">
+            <RestablecerClaveTitular />
+          </SeccionFormulario>
+        </>
+      )}
     </RecordFormDialog>
   );
 };
