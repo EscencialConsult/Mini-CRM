@@ -138,7 +138,8 @@ export interface PerfilConModulos {
 
 /**
  * Se usa si la cuenta lo tiene Y el usuario lo tiene: el administrador, todos
- * los de su cuenta; el resto, los que le asignaron. Una cuenta suspendida no
+ * los de su cuenta menos los extras (asistente), que se ceden a cada persona;
+ * el resto, los que le asignaron. Una cuenta suspendida no
  * usa ninguno.
  */
 export const tieneModulo = (
@@ -148,7 +149,8 @@ export const tieneModulo = (
   !!perfil &&
   (perfil.cuenta === undefined ||
     (perfil.cuenta.activa && perfil.cuenta.modulos.includes(modulo))) &&
-  (perfil.rol === "administrador" || perfil.modulos.includes(modulo));
+  (perfil.modulos.includes(modulo) ||
+    (perfil.rol === "administrador" && !MODULOS_OPCIONALES.includes(modulo)));
 
 /** Primera pantalla que puede abrir: donde aterriza si no tiene el Panel. */
 export const rutaInicial = (perfil: PerfilConModulos): string | undefined =>

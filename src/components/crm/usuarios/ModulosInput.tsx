@@ -3,7 +3,12 @@ import { useWatch } from "react-hook-form";
 
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { MODULOS, REQUIERE_MODULO, type Modulo } from "../domain/modulos";
+import {
+  MODULOS,
+  MODULOS_OPCIONALES,
+  REQUIERE_MODULO,
+  type Modulo,
+} from "../domain/modulos";
 import type { Rol } from "../domain/types";
 
 const Titulo = () => <legend className="text-sm font-medium">Módulos</legend>;
@@ -24,8 +29,13 @@ export const ModulosInput = ({ disponibles, plan }: ModulosInputProps) => {
   const rol = useWatch({ name: "rol" }) as Rol | undefined;
   const { field } = useInput<Modulo[]>({ source: "modulos" });
   const elegidos: Modulo[] = field.value ?? [];
+  // El administrador ya tiene todo lo del plan salvo los extras (asistente):
+  // esos se le ceden como a cualquiera.
+  const esAdministrador = !plan && rol === "administrador";
   const ofrecidos = MODULOS.filter(
-    (modulo) => !disponibles || disponibles.includes(modulo.id),
+    (modulo) =>
+      (!disponibles || disponibles.includes(modulo.id)) &&
+      (!esAdministrador || MODULOS_OPCIONALES.includes(modulo.id)),
   );
 
   // Siempre en el orden del menú, sin repetidos. Un complemento (Asistente:
@@ -40,7 +50,7 @@ export const ModulosInput = ({ disponibles, plan }: ModulosInputProps) => {
       }),
     );
 
-  if (!plan && rol === "administrador") {
+  if (esAdministrador && ofrecidos.length === 0) {
     return (
       <fieldset className="space-y-1">
         <Titulo />
@@ -56,9 +66,11 @@ export const ModulosInput = ({ disponibles, plan }: ModulosInputProps) => {
     <fieldset className="space-y-2" onBlur={field.onBlur}>
       <Titulo />
       <p className="text-sm text-muted-foreground">
-        {plan
-          ? "Lo que contrata la cuenta. Sus usuarios solo pueden tener estos módulos; lo que quites deja de funcionarles."
-          : "Lo que no esté marcado no le aparece en el menú ni puede abrirlo. Con Tablero o Tareas sin Clientes, ve y elige clientes pero no los edita."}
+        {esAdministrador
+          ? "El administrador tiene todo lo que incluye la cuenta, Usuarios incluido. Estos extras no se heredan: hay que cederlos a cada persona."
+          : plan
+            ? "Lo que contrata la cuenta. Sus usuarios solo pueden tener estos módulos; lo que quites deja de funcionarles."
+            : "Lo que no esté marcado no le aparece en el menú ni puede abrirlo. Con Tablero o Tareas sin Clientes, ve y elige clientes pero no los edita."}
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
         {ofrecidos.map((modulo) => {
