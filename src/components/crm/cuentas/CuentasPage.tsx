@@ -59,7 +59,9 @@ const columnas: ColumnaLista<Cuenta>[] = [
     etiquetaTarjeta: "Módulos",
     celda: (cuenta) =>
       cuenta.modulos.length ? (
-        <span className="text-sm">
+        // Con muchos módulos la lista se parte en líneas: si no, ensancha la tabla
+        // y empuja el panel de solicitudes (y su «Dar de alta») fuera de la pantalla
+        <span className="block max-w-md min-w-48 text-sm whitespace-normal">
           {cuenta.modulos.map(nombreModulo).join(", ")}
         </span>
       ) : (
