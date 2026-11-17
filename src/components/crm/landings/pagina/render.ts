@@ -222,6 +222,9 @@ legend{padding:0}
 .choice{display:flex;align-items:flex-start;gap:8px;margin-top:6px;font-size:.95rem}
 .choice input{margin-top:5px;accent-color:var(--primary)}
 .consent{font-size:.82rem;color:var(--muted);margin:0 0 16px}
+.phone-row{display:flex;gap:8px}
+.phone-row select{flex:0 0 auto;width:auto;max-width:48%}
+.phone-row input{flex:1 1 auto;min-width:0}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .send{width:100%}
@@ -450,7 +453,7 @@ const SHORT_TARGETS = [
 ];
 const isShortField = (field: LandingField) =>
   SHORT_TARGETS.includes(field.target) &&
-  ["text", "email", "phone"].includes(field.type);
+  ["text", "email"].includes(field.type);
 
 const halfWidthFields = (fields: LandingField[]) => {
   const half = new Set<string>();
@@ -463,6 +466,23 @@ const halfWidthFields = (fields: LandingField[]) => {
   }
   return half;
 };
+
+/** Country codes offered next to a phone field: the visitor picks it, so the number is complete. */
+const PHONE_COUNTRIES = [
+  ["Argentina", "+54"],
+  ["Uruguay", "+598"],
+  ["Chile", "+56"],
+  ["Paraguay", "+595"],
+  ["Bolivia", "+591"],
+  ["Perú", "+51"],
+  ["Colombia", "+57"],
+  ["México", "+52"],
+  ["Brasil", "+55"],
+  ["Ecuador", "+593"],
+  ["Venezuela", "+58"],
+  ["España", "+34"],
+  ["Estados Unidos", "+1"],
+] as const;
 
 /** On the canvas `index` is set: its label is edited there and it is no <label>. */
 const renderField = (field: LandingField, half: boolean, index?: number) => {
@@ -496,8 +516,14 @@ const renderField = (field: LandingField, half: boolean, index?: number) => {
   if (field.type === "textarea") {
     return `${open}<textarea name="${name}"${required}></textarea></${tag}>`;
   }
-  const inputType =
-    field.type === "email" ? "email" : field.type === "phone" ? "tel" : "text";
+  if (field.type === "phone") {
+    const countries = PHONE_COUNTRIES.map(
+      ([country, code]) =>
+        `<option value="${code}"${code === "+54" ? " selected" : ""}>${esc(country)} ${code}</option>`,
+    ).join("");
+    return `${open}<span class="phone-row"><select class="cc" name="${name}__cc" aria-label="País del teléfono">${countries}</select><input type="tel" name="${name}" autocomplete="tel-national" inputmode="tel" placeholder="11 5555 1234"${required}></span></${tag}>`;
+  }
+  const inputType = field.type === "email" ? "email" : "text";
   const autocomplete: Record<string, string> = {
     full_name: "name",
     first_name: "given-name",
@@ -1119,7 +1145,14 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
       return picked ? picked.value : "";
     }
     var input = form.elements[field.id];
-    return input ? input.value.trim() : "";
+    var typed = input ? input.value.trim() : "";
+    if (field.type === "phone" && typed) {
+      // A number typed with its own "+" is already complete
+      if (typed.charAt(0) === "+") return typed;
+      var code = form.elements[field.id + "__cc"];
+      return (code ? code.value + " " : "") + typed.replace(/^0+/, "");
+    }
+    return typed;
   };
   // An order is never redirected away: its summary and the WhatsApp button are the thanks
   var finish = function (answers, data) {

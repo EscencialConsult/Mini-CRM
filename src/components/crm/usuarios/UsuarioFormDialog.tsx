@@ -9,6 +9,7 @@ import { TextInput } from "@/components/admin/text-input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { generarClave } from "../domain/claves";
 import { MODULOS_POR_DEFECTO, type Modulo } from "../domain/modulos";
 import { ROLES } from "../domain/options";
 import type {
@@ -44,9 +45,6 @@ interface ValoresUsuario {
   modulos?: Modulo[];
 }
 
-const ALFABETO_CLAVE =
-  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-
 const mensajeDe = (error: unknown): string =>
   error instanceof Error ? error.message : "No se pudo completar la operación";
 
@@ -56,12 +54,10 @@ const claveOpcional: Validator = (valor) =>
 export const GeneradorClave = () => {
   const { setValue } = useFormContext();
   const generar = () => {
-    const azar = crypto.getRandomValues(new Uint32Array(12));
-    const clave = Array.from(
-      azar,
-      (numero) => ALFABETO_CLAVE[numero % ALFABETO_CLAVE.length],
-    ).join("");
-    setValue("password", clave, { shouldDirty: true, shouldValidate: true });
+    setValue("password", generarClave(), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
   return (
     <Button type="button" variant="outline" size="sm" onClick={generar}>

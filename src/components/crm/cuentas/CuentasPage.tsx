@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,10 @@ import { Pill } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
 import { useCloseRecord, useRecordRoute } from "../shared/useRecordRoute";
+import {
+  CredencialesCuentaDialog,
+  type CredencialesCuenta,
+} from "./CredencialesCuenta";
 import { CuentaFormDialog } from "./CuentaFormDialog";
 
 const ESTADOS = [
@@ -85,6 +90,9 @@ const columnas: ColumnaLista<Cuenta>[] = [
 export const CuentasPage = () => {
   const ruta = useRecordRoute("cuentas");
   const cerrar = useCloseRecord("cuentas");
+  const [credenciales, setCredenciales] = useState<CredencialesCuenta | null>(
+    null,
+  );
 
   return (
     <>
@@ -114,7 +122,15 @@ export const CuentasPage = () => {
         hrefDe={(cuenta) => `/cuentas/${cuenta.id}`}
         vacio="Todavía no hay cuentas. Creá la primera con “Nueva cuenta”."
       />
-      {ruta.mode === "create" && <CuentaFormDialog onClose={cerrar} />}
+      {ruta.mode === "create" && (
+        <CuentaFormDialog onClose={cerrar} onCreada={setCredenciales} />
+      )}
+      {credenciales && (
+        <CredencialesCuentaDialog
+          credenciales={credenciales}
+          onClose={() => setCredenciales(null)}
+        />
+      )}
       {ruta.mode === "edit" && (
         <CuentaFormDialog key={ruta.id} id={ruta.id} onClose={cerrar} />
       )}
