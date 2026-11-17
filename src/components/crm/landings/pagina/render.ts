@@ -260,7 +260,7 @@ figure{margin:0}
 .quote figcaption{margin-top:auto;font-size:.92rem}
 .quote figcaption b{display:block}
 .quote figcaption span{color:var(--muted)}
-.plans{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,360px));align-items:stretch}
+.plans{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,350px));align-items:stretch}
 .plan{display:flex;flex-direction:column;gap:14px}
 .plan h3{margin:0}
 .price{font-size:1.9rem;font-weight:800;line-height:1.1}
