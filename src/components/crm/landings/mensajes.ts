@@ -481,6 +481,7 @@ export const mensajesLandings = {
         poppins: "Poppins",
         montserrat: "Montserrat",
         lora: "Lora (con serifa)",
+        exo2: "Exo 2 (la de Dealflow)",
       },
     },
     settings: {

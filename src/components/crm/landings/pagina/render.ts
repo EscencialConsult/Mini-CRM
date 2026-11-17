@@ -187,6 +187,7 @@ p:last-child{margin-bottom:0}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:66px}
 .brand{font-weight:800;font-size:1.05rem;color:var(--ink);text-decoration:none}
 .brand img{max-height:40px;width:auto}
+${heroIsDark ? ".top{background:rgba(14,13,17,.92);border-bottom-color:rgba(255,255,255,.08)}.brand{color:#fff}" : ""}
 .hero{background:${background.css};color:var(--hero-text)}
 .hero-inner{display:grid;gap:40px;padding-top:56px;padding-bottom:64px}
 .eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.86;margin:0 0 14px}

@@ -103,6 +103,10 @@ export const LANDING_FONTS = {
     family: '"Lora", Georgia, serif',
     google: "Lora:wght@400;500;600;700",
   },
+  exo2: {
+    family: '"Exo 2", system-ui, sans-serif',
+    google: "Exo+2:wght@300;400;500;600;700;800",
+  },
 } as const;
 export type LandingFont = keyof typeof LANDING_FONTS;
 
