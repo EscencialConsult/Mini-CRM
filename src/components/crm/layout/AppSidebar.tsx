@@ -12,6 +12,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
@@ -155,7 +156,7 @@ export const AppSidebar = () => {
       },
     ] satisfies ItemNavegacion[]
   ).filter(visible);
-  const administracion = (
+  const plataforma = (
     [
       {
         soloPlataforma: true,
@@ -165,6 +166,10 @@ export const AppSidebar = () => {
         activo: estaEn("/cuentas"),
         aviso: solicitudesPendientes,
       },
+    ] satisfies ItemNavegacion[]
+  ).filter(visible);
+  const administracion = (
+    [
       {
         to: "/usuarios",
         etiqueta: "Usuarios",
@@ -203,43 +208,63 @@ export const AppSidebar = () => {
 
   const logoMarca = <img className="size-10 shrink-0" src={logo} alt="" />;
 
-  const renderGrupo = (items: ItemNavegacion[], etiquetaGrupo: string) =>
-    items.length > 0 && (
-      <SidebarGroup className="px-3 py-1.5 group-data-[collapsible=icon]:px-2">
-        <SidebarGroupContent>
-          <SidebarMenu className="gap-1" aria-label={etiquetaGrupo}>
-            {items.map(({ to, etiqueta, Icono, activo, aviso }) => (
-              <SidebarMenuItem key={to}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={activo}
-                  tooltip={etiqueta}
-                  className="relative h-10 gap-3 px-3 text-[15px] font-medium before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-marca before:opacity-0 data-[active=true]:before:opacity-100 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:p-0! [&>svg]:size-5"
-                >
-                  <Link to={to} aria-current={activo ? "page" : undefined}>
-                    <Icono />
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      {etiqueta}
-                    </span>
-                    {!!aviso && (
-                      <span
-                        aria-hidden
-                        className="absolute right-2 top-2 hidden size-2.5 rounded-full bg-destructive ring-2 ring-sidebar group-data-[collapsible=icon]:block"
-                      />
-                    )}
-                  </Link>
-                </SidebarMenuButton>
-                {!!aviso && (
-                  <SidebarMenuBadge className="rounded-full bg-destructive text-white">
-                    {aviso}
-                  </SidebarMenuBadge>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+  const renderGrupo = (
+    items: ItemNavegacion[],
+    etiquetaGrupo: string,
+    tituloVisible = false,
+  ) => {
+    const idTitulo = `titulo-grupo-${etiquetaGrupo.toLowerCase()}`;
+    return (
+      items.length > 0 && (
+        <SidebarGroup className="px-3 py-1.5 group-data-[collapsible=icon]:px-2">
+          {tituloVisible && (
+            <SidebarGroupLabel
+              id={idTitulo}
+              className="px-3 text-xs font-semibold uppercase tracking-wide"
+            >
+              {etiquetaGrupo}
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu
+              className="gap-1"
+              aria-label={tituloVisible ? undefined : etiquetaGrupo}
+              aria-labelledby={tituloVisible ? idTitulo : undefined}
+            >
+              {items.map(({ to, etiqueta, Icono, activo, aviso }) => (
+                <SidebarMenuItem key={to}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={activo}
+                    tooltip={etiqueta}
+                    className="relative h-10 gap-3 px-3 text-[15px] font-medium before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-marca before:opacity-0 data-[active=true]:before:opacity-100 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:p-0! [&>svg]:size-5"
+                  >
+                    <Link to={to} aria-current={activo ? "page" : undefined}>
+                      <Icono />
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        {etiqueta}
+                      </span>
+                      {!!aviso && (
+                        <span
+                          aria-hidden
+                          className="absolute right-2 top-2 hidden size-2.5 rounded-full bg-destructive ring-2 ring-sidebar group-data-[collapsible=icon]:block"
+                        />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                  {!!aviso && (
+                    <SidebarMenuBadge className="rounded-full bg-destructive text-white">
+                      {aviso}
+                    </SidebarMenuBadge>
+                  )}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )
     );
+  };
 
   return (
     <>
@@ -268,6 +293,7 @@ export const AppSidebar = () => {
         </SidebarHeader>
 
         <SidebarContent className="gap-0" aria-label="Navegación principal">
+          {renderGrupo(plataforma, "Plataforma", true)}
           {renderGrupo(principales, "Secciones")}
           {renderGrupo(administracion, "Administración")}
         </SidebarContent>
@@ -289,8 +315,23 @@ export const AppSidebar = () => {
                 {identity?.fullName}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {nombreDe(ROLES, identity?.rol)}
+                {identity?.plataforma && identity.rol === "administrador"
+                  ? "Administrador de la plataforma"
+                  : nombreDe(ROLES, identity?.rol)}
               </p>
+              {identity &&
+                (identity.cuenta?.nombre ? (
+                  <p
+                    className="line-clamp-2 break-words text-xs text-muted-foreground"
+                    title={identity.cuenta.nombre}
+                  >
+                    {identity.cuenta.nombre}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Empresa no disponible
+                  </p>
+                ))}
             </div>
           </div>
         </SidebarFooter>

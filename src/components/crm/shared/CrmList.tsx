@@ -89,6 +89,18 @@ interface CrmListProps<T extends RaRecord> {
   pestanas?: readonly PestanaLista[];
   /** Casillas para elegir varias filas y la barra con sus acciones. */
   seleccion?: SeleccionLista<T>;
+  /**
+   * Clave con la que se guardan en el navegador los filtros, el orden y la
+   * página. Por defecto `${resource}.listParams`; cambiarla descarta lo que se
+   * guardó con otra forma.
+   */
+  storeKey?: string;
+  /**
+   * Muestra el mensaje del error debajo del aviso genérico. Sólo para listas
+   * cuyos errores vienen ya en español de una Edge Function; en las demás puede
+   * venir texto técnico de la base.
+   */
+  detalleDelError?: boolean;
 }
 
 /** Nombre accesible de la casilla de una fila. */
@@ -102,6 +114,7 @@ const ListaContenido = <T extends RaRecord>({
   vacio,
   accionesTarjeta,
   seleccion,
+  detalleDelError = false,
   ocultos = [],
 }: Pick<
   CrmListProps<T>,
@@ -111,6 +124,7 @@ const ListaContenido = <T extends RaRecord>({
   | "vacio"
   | "accionesTarjeta"
   | "seleccion"
+  | "detalleDelError"
 > & {
   /** Filtros que no cuentan como "filtrado" (los de las pestañas). */
   ocultos?: readonly string[];
@@ -149,6 +163,9 @@ const ListaContenido = <T extends RaRecord>({
         className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm"
       >
         <p>No se pudieron cargar los datos. Probá de nuevo.</p>
+        {detalleDelError && error instanceof Error && error.message && (
+          <p className="text-muted-foreground">{error.message}</p>
+        )}
         <Button size="sm" variant="outline" onClick={() => void refetch()}>
           Reintentar
         </Button>
@@ -385,6 +402,7 @@ type CuerpoListaProps<T extends RaRecord> = Pick<
   | "vacio"
   | "pestanas"
   | "seleccion"
+  | "detalleDelError"
 >;
 
 /**
@@ -472,6 +490,7 @@ export const CrmList = <T extends RaRecord>({
   acciones,
   encabezado,
   pestanas,
+  storeKey,
   ...cuerpo
 }: CrmListProps<T>) => (
   <ListBase
@@ -481,7 +500,7 @@ export const CrmList = <T extends RaRecord>({
     filterDefaultValues={filterDefaultValues}
     filter={filter}
     disableSyncWithLocation
-    storeKey={`${resource}.listParams`}
+    storeKey={storeKey ?? `${resource}.listParams`}
   >
     <section className={cn("space-y-4", titulo && "py-2")}>
       {(titulo || acciones) && (

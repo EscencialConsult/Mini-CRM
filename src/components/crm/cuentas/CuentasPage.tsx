@@ -138,13 +138,21 @@ export const CuentasPage = () => {
       <CrmList<Cuenta>
         resource="cuentas"
         titulo="Cuentas"
+        // El filtro «Estado» antes se guardaba como `activa`; con la clave nueva
+        // se descarta ese valor viejo, que quedaba aplicado sin verse.
+        storeKey="cuentas.listParams.v2"
+        detalleDelError
         sort={{ field: "nombre", order: "ASC" }}
         buscar="Buscar por cuenta o email del titular"
         filtros={
           <FilterSelect source="estado" etiqueta="Estado" opciones={ESTADOS} />
         }
         encabezado={
-          <div className="space-y-4 empty:hidden">
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Cada cuenta es una empresa que usa el sistema, con su plan y su
+              administrador titular.
+            </p>
             <SolicitudesPendientes
               solicitudes={solicitudes}
               alDescartar={descartar}
