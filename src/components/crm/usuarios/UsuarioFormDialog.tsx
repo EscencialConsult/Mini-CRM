@@ -118,8 +118,8 @@ const Campos = ({
         validate={editando ? claveOpcional : validarClave}
         helperText={
           editando
-            ? "Si la completás, reemplaza la contraseña actual del usuario."
-            : "Mínimo 8 caracteres. Compartísela al usuario; puede cambiarla después."
+            ? "Si la completás, reemplaza la contraseña actual. Si no es la tuya, la persona va a tener que elegir una propia al ingresar."
+            : "Mínimo 8 caracteres. Compartísela al usuario: va a tener que elegir una contraseña propia al ingresar por primera vez."
         }
       />
       <GeneradorClave />

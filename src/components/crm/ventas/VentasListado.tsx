@@ -8,6 +8,7 @@ import { formatFecha, formatMoneda, hoyIso } from "../domain/format";
 import type { Oportunidad } from "../domain/types";
 import { useModulos } from "../providers/authProvider";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
+import { celdaCsv } from "../shared/csv";
 
 const columnas: ColumnaLista<Oportunidad>[] = [
   {
@@ -65,14 +66,6 @@ const columnas: ColumnaLista<Oportunidad>[] = [
 
 // Excel en español abre bien el CSV con punto y coma y coma decimal
 const SEPARADOR = ";";
-
-const celdaCsv = (valor: unknown): string => {
-  const texto =
-    typeof valor === "number"
-      ? String(valor).replace(".", ",")
-      : String(valor ?? "");
-  return /[";\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
-};
 
 const COLUMNAS_CSV: [string, (venta: Oportunidad) => unknown][] = [
   ["Fecha de cierre", (venta) => venta.fecha_cierre],

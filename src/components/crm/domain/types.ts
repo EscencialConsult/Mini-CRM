@@ -54,6 +54,8 @@ export interface Usuario extends RaRecord<string> {
   cuenta_id?: number;
   /** Dueño del sistema: administra las cuentas. */
   plataforma?: boolean;
+  /** Le entregaron una contraseña provisoria: tiene que elegir una propia antes de seguir. */
+  debe_cambiar_clave?: boolean;
   /** Su cuenta (se lee junto con el perfil). */
   cuenta?: CuentaResumen;
 }
@@ -74,14 +76,24 @@ export interface Cuenta extends RaRecord<number>, CuentaResumen {
   creada_en: string;
   actualizada_en: string;
   usuarios_activos: number;
-  titular: { id: string; nombre: string; apellido: string; email: string } | null;
+  titular: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    email: string;
+  } | null;
 }
 
 export interface NuevaCuenta {
   nombre: string;
   modulos: Modulo[];
   max_usuarios: number | null;
-  titular: { email: string; nombre: string; apellido: string; password?: string };
+  titular: {
+    email: string;
+    nombre: string;
+    apellido: string;
+    password?: string;
+  };
 }
 
 export interface CambiosCuenta {

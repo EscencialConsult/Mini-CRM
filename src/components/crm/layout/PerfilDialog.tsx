@@ -15,6 +15,7 @@ import { validarClave } from "../domain/validators";
 import { invalidarPerfil, useCrmIdentity } from "../providers/authProvider";
 import { getSupabaseClient } from "../providers/supabase";
 import { RecordDialog } from "../shared/RecordDialog";
+import { SeccionDosPasos } from "./SeccionDosPasos";
 
 interface DatosPerfil {
   nombre: string;
@@ -163,6 +164,12 @@ export const PerfilDialog = ({ onClose }: { onClose: () => void }) => {
             <SeccionDatos usuario={usuario} />
             <Separator />
             <SeccionClave />
+            {identity?.plataforma === true && (
+              <>
+                <Separator />
+                <SeccionDosPasos />
+              </>
+            )}
           </>
         ) : (
           <div className="space-y-3" aria-busy="true">

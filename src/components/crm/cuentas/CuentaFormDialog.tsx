@@ -210,7 +210,8 @@ const ClaveInicial = () => {
 const CamposTitular = () => (
   <>
     <p className="text-sm text-muted-foreground">
-      Entra con su email y esta contraseña inicial. Desde «Usuarios» crea a sus
+      Entra con su email y esta contraseña inicial; al ingresar por primera vez
+      tendrá que elegir una contraseña propia. Desde «Usuarios» crea a sus
       trabajadores, con los módulos de esta cuenta.
     </p>
     <div className="grid gap-4 sm:grid-cols-2">

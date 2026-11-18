@@ -2,6 +2,9 @@
 --
 -- Crea dos cuentas (X e Y) con datos, actúa como cada usuario y comprueba que
 -- nadie ve ni toca lo de la otra. Cualquier falla corta con «FALLO: …».
+-- Además comprueba el endurecimiento de 20261118100000: qué funciones pueden
+-- ejecutar anon y authenticated, los topes contra abuso de las landings, el cupo
+-- del asistente y el cambio de clave obligatorio.
 -- Todo corre dentro de una transacción que termina en ROLLBACK: no deja nada.
 -- Aun así, correrla en una base de pruebas (consume números de identidad).
 --
@@ -536,6 +539,239 @@ begin
   end if;
   if r.modulos <> array['panel', 'clientes'] then
     raise exception 'FALLO: los módulos de la cuenta nueva no son los pedidos';
+  end if;
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 6) Quién puede ejecutar qué: una función nueva no queda abierta por olvido
+-- ----------------------------------------------------------------------------
+do $$
+declare
+  f record;
+  -- Lo único que un visitante sin sesión puede llamar
+  anon_ok text[] := array['landing_publica', 'landing_recibir', 'landing_productos', 'landing_pedido'];
+  -- Lo que la app llama con sesión (RPC) y lo que usan las políticas como el propio usuario
+  auth_ok text[] := array[
+    'landing_publica', 'landing_recibir', 'landing_productos', 'landing_pedido',
+    'usuario_activo', 'es_administrador', 'mi_cuenta', 'cuenta_principal', 'es_plataforma', 'cuenta_actual',
+    'tiene_modulo', 'pedido_cambiar_estado', 'landing_publicar', 'landing_despublicar',
+    'asistente_consumir', 'clave_cambiada',
+    'panel_indicadores', 'panel_ventas_por_mes', 'panel_embudo', 'recordatorios_conteo',
+    'reprogramar_actividades', 'cambiar_responsables_actividades', 'landing_estadisticas', 'landings_indicadores',
+    'ventas_reporte', 'armar_lineas', 'normalizar_busqueda'
+  ];
+begin
+  for f in
+    select p.proname, n.nspname,
+           has_function_privilege('anon', p.oid, 'execute') as anon,
+           has_function_privilege('authenticated', p.oid, 'execute') as autenticado
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'privado')
+  loop
+    if f.anon and not (f.nspname = 'public' and f.proname = any (anon_ok)) then
+      raise exception 'FALLO: anon puede ejecutar %.%', f.nspname, f.proname;
+    end if;
+    if f.autenticado and not (f.nspname = 'public' and f.proname = any (auth_ok)) then
+      raise exception 'FALLO: authenticated puede ejecutar %.%', f.nspname, f.proname;
+    end if;
+  end loop;
+
+  -- Una función creada de acá en más nace cerrada: solo su dueño y service_role
+  create function public.zz_prueba_privilegios() returns int language sql as 'select 1';
+  if has_function_privilege('anon', 'public.zz_prueba_privilegios()', 'execute')
+     or has_function_privilege('authenticated', 'public.zz_prueba_privilegios()', 'execute') then
+    raise exception 'FALLO: una función nueva nace ejecutable por anon o authenticated';
+  end if;
+  drop function public.zz_prueba_privilegios();
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 7) Topes contra abuso en las landings públicas
+-- ----------------------------------------------------------------------------
+-- Visitas: una misma conexión suma hasta 30 por día en cada landing
+select set_config('request.headers', '{"cf-connecting-ip":"203.0.113.7"}', true);
+set local role anon;
+do $$
+declare i int;
+begin
+  for i in 1..40 loop
+    perform public.landing_recibir(jsonb_build_object('slug', 'prueba-aislamiento-y', 'event', 'visit'));
+  end loop;
+end $$;
+reset role;
+do $$
+declare n bigint;
+begin
+  select coalesce(sum(visitas), 0) into n from public.landing_visitas where landing_id = current_setting('t.l_y')::bigint;
+  if n <> 30 then raise exception 'FALLO: una misma conexión sumó % visitas en el día (el tope es 30)', n; end if;
+end $$;
+
+-- Otra conexión sí cuenta
+select set_config('request.headers', '{"cf-connecting-ip":"203.0.113.8"}', true);
+set local role anon;
+do $$
+begin
+  perform public.landing_recibir(jsonb_build_object('slug', 'prueba-aislamiento-y', 'event', 'visit'));
+end $$;
+reset role;
+do $$
+declare n bigint;
+begin
+  select coalesce(sum(visitas), 0) into n from public.landing_visitas where landing_id = current_setting('t.l_y')::bigint;
+  if n <> 31 then raise exception 'FALLO: la visita de otra conexión no se contó (hay %)', n; end if;
+end $$;
+
+-- Envíos: con el tope por hora de la landing agotado se rechazan (formulario y pedido)
+insert into privado.limites (clave, n, vence)
+values ('envio:landing:' || current_setting('t.l_y'), 300, now() + interval '1 hour')
+on conflict (clave) do update set n = 300, vence = now() + interval '1 hour';
+select set_config('request.headers', '{"cf-connecting-ip":"203.0.113.9"}', true);
+set local role anon;
+do $$
+begin
+  begin
+    perform public.landing_recibir(jsonb_build_object(
+      'slug', 'prueba-aislamiento-y', 'answers', jsonb_build_object('n', 'Fran Tope', 'e', 'fran@prueba.invalid')));
+    raise exception 'FALLO: la landing aceptó un envío con el tope por hora agotado';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+    if sqlerrm <> 'rate_limited' then raise exception 'FALLO: error inesperado en el envío: %', sqlerrm; end if;
+  end;
+  begin
+    perform public.landing_pedido(jsonb_build_object('slug', 'prueba-aislamiento-y'));
+    raise exception 'FALLO: landing_pedido aceptó un pedido con el tope por hora agotado';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+    if sqlerrm not like 'Recibimos muchos pedidos%' then raise exception 'FALLO: error inesperado en el pedido: %', sqlerrm; end if;
+  end;
+  -- Una landing que no existe sigue dando el error de siempre (no gasta cupo)
+  begin
+    perform public.landing_recibir(jsonb_build_object('slug', 'no-existe-esta-landing', 'answers', jsonb_build_object('n', 'X')));
+    raise exception 'FALLO: una landing inexistente aceptó un envío';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+    if sqlerrm <> 'not_found' then raise exception 'FALLO: error inesperado en landing inexistente: %', sqlerrm; end if;
+  end;
+end $$;
+reset role;
+
+-- Y con el tope por día de la CUENTA agotado
+delete from privado.limites where clave like 'envio:%';
+insert into privado.limites (clave, n, vence)
+values ('envio:cuenta:' || current_setting('t.y'), 2000, now() + interval '1 day');
+set local role anon;
+do $$
+begin
+  begin
+    perform public.landing_recibir(jsonb_build_object(
+      'slug', 'prueba-aislamiento-y', 'answers', jsonb_build_object('n', 'Gus Tope', 'e', 'gus@prueba.invalid')));
+    raise exception 'FALLO: la landing aceptó un envío con el tope por día de la cuenta agotado';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+    if sqlerrm <> 'rate_limited' then raise exception 'FALLO: error inesperado en el tope de cuenta: %', sqlerrm; end if;
+  end;
+end $$;
+reset role;
+
+-- Sin topes agotados un envío normal sigue entrando (regresión)
+delete from privado.limites where clave like 'envio:%';
+select set_config('request.headers', '{"cf-connecting-ip":"203.0.113.10"}', true);
+set local role anon;
+do $$
+declare r jsonb;
+begin
+  r := public.landing_recibir(jsonb_build_object(
+    'slug', 'prueba-aislamiento-y', 'answers', jsonb_build_object('n', 'Hugo Normal', 'e', 'hugo@prueba.invalid')));
+  if r ->> 'ok' is distinct from 'true' then raise exception 'FALLO: un envío normal dejó de funcionar'; end if;
+end $$;
+reset role;
+do $$
+begin
+  if not exists (select 1 from public.clientes where nombre = 'Hugo' and cuenta_id = current_setting('t.y')::bigint) then
+    raise exception 'FALLO: el envío normal no creó el cliente';
+  end if;
+end $$;
+select set_config('request.headers', '', true);
+
+-- ----------------------------------------------------------------------------
+-- 8) Cupo del asistente de IA
+-- ----------------------------------------------------------------------------
+select set_config('request.jwt.claim.sub', current_setting('t.ay'), true);
+set local role authenticated;
+do $$
+declare i int;
+begin
+  for i in 1..30 loop
+    if not public.asistente_consumir() then
+      raise exception 'FALLO: la consulta % del asistente se rechazó antes del tope', i;
+    end if;
+  end loop;
+  if public.asistente_consumir() then
+    raise exception 'FALLO: el asistente no frenó la consulta 31 de la misma persona';
+  end if;
+end $$;
+reset role;
+
+-- El tope por cuenta alcanza a todas sus personas
+insert into privado.limites (clave, n, vence)
+values ('asistente:cuenta:' || current_setting('t.x'), 1000, now() + interval '1 day');
+select set_config('request.jwt.claim.sub', current_setting('t.ax'), true);
+set local role authenticated;
+do $$
+begin
+  if public.asistente_consumir() then
+    raise exception 'FALLO: el asistente no frenó con el cupo diario de la cuenta agotado';
+  end if;
+end $$;
+reset role;
+
+-- Sin sesión no se consume ni se ejecuta
+set local role anon;
+do $$
+begin
+  begin
+    perform public.asistente_consumir();
+    raise exception 'FALLO: anon puede consumir cupo del asistente';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+end $$;
+reset role;
+
+-- ----------------------------------------------------------------------------
+-- 9) Cambio de clave obligatorio
+-- ----------------------------------------------------------------------------
+update public.usuarios set debe_cambiar_clave = true
+ where id in (current_setting('t.ay')::uuid, current_setting('t.vx')::uuid);
+select set_config('request.jwt.claim.sub', current_setting('t.ay'), true);
+set local role authenticated;
+do $$
+begin
+  -- No puede limpiar la marca por su cuenta (el permiso de columna es solo nombre y apellido)
+  begin
+    update public.usuarios set debe_cambiar_clave = false where id = current_setting('t.ay')::uuid;
+    raise exception 'FALLO: una persona pudo limpiar su marca de cambio de clave sin clave_cambiada()';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+  -- Ni marcarle la clave a otra persona
+  begin
+    update public.usuarios set debe_cambiar_clave = true where id = current_setting('t.ay')::uuid;
+    raise exception 'FALLO: una persona pudo escribir debe_cambiar_clave';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+  perform public.clave_cambiada();
+end $$;
+reset role;
+do $$
+begin
+  if (select debe_cambiar_clave from public.usuarios where id = current_setting('t.ay')::uuid) then
+    raise exception 'FALLO: clave_cambiada() no limpió la marca de quien la llamó';
+  end if;
+  if not (select debe_cambiar_clave from public.usuarios where id = current_setting('t.vx')::uuid) then
+    raise exception 'FALLO: clave_cambiada() limpió la marca de otra persona';
   end if;
 end $$;
 

@@ -16,6 +16,8 @@ export interface CrmIdentity extends UserIdentity {
   plataforma: boolean;
   /** Su cuenta: plan (módulos y máximo de usuarios) y si está activa. */
   cuenta?: CuentaResumen;
+  /** Tiene una contraseña provisoria: no sigue hasta elegir una propia. */
+  debeCambiarClave: boolean;
 }
 
 // El perfil se vuelve a consultar cada minuto: un cambio de rol o una baja
@@ -33,11 +35,12 @@ const leerPerfil = async (): Promise<Usuario | undefined> => {
 
   const completo = await client
     .from("usuarios")
-    .select(`${COLUMNAS_PERFIL}, cuenta_id, plataforma`)
+    .select(`${COLUMNAS_PERFIL}, cuenta_id, plataforma, debe_cambiar_clave`)
     .eq("id", userId)
     .maybeSingle<Usuario>();
-  // Si el sitio sale antes que la migración de cuentas, esas columnas no existen
-  // todavía: se lee el perfil de siempre y el CRM sigue funcionando como antes.
+  // Si el sitio sale antes que las migraciones de cuentas o de seguridad, esas
+  // columnas no existen todavía: se lee el perfil de siempre y el CRM sigue
+  // funcionando como antes.
   const { data } = completo.error
     ? await client
         .from("usuarios")
@@ -88,6 +91,7 @@ export const getAuthProvider = (): AuthProvider => {
         modulos: perfil.modulos,
         plataforma: perfil.plataforma === true,
         cuenta: perfil.cuenta,
+        debeCambiarClave: perfil.debe_cambiar_clave === true,
       };
     },
   });

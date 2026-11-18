@@ -1,0 +1,46 @@
+# Puerta de calidad: la misma que se corre a mano (typecheck, lint, build), más dos
+# controles de seguridad baratos. No tiene acceso a secretos ni escribe en el repo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+      # Migraciones + test de aislamiento entre cuentas en un Postgres local descartable
+      # (PGlite). No toca ninguna base real; es una emulación de Supabase, así que el mismo
+      # archivo se corre también contra la base real después de cada `npm run db:push`.
+      - name: Migraciones y test de aislamiento
+        run: npm run db:test
+
+      # Solo frena una vulnerabilidad crítica en lo que llega a producción. Las altas
+      # que hay hoy (query-string, por ra-core) son de denegación de servicio en el navegador.
+      - name: Vulnerabilidades en dependencias de producción
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Secretos en el código
+        run: |
+          if git grep -nIE "sk-ant-[A-Za-z0-9_-]{20,}|sbp_[A-Za-z0-9]{30,}|sb_secret_[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----" -- . ':!package-lock.json'; then
+            echo "Hay algo que parece un secreto en el código: sacarlo y rotarlo."
+            exit 1
+          fi

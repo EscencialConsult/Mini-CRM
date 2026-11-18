@@ -15,6 +15,7 @@ import { GlobalErrorListener } from "../shared/errors/GlobalErrorListener";
 import { AsistenteFlotante } from "../asistente/AsistenteFlotante";
 import { useCrmIdentity } from "../providers/authProvider";
 import { AppSidebar } from "./AppSidebar";
+import { CambioClaveObligatorio } from "./CambioClaveObligatorio";
 
 /** Una cuenta suspendida no ve nada: se le explica en vez de mostrar pantallas vacías. */
 const CuentaSuspendida = ({ nombre }: { nombre: string }) => (
@@ -76,6 +77,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <Notification />
       <GlobalErrorListener />
       <AsistenteFlotante />
+      <CambioClaveObligatorio />
     </SidebarProvider>
   );
 };

@@ -37,7 +37,9 @@ const buscarTelefono = async (email: string): Promise<string> => {
     const { data } = await getSupabaseClient()
       .from("clientes")
       .select("telefono")
-      .ilike("email", email)
+      // `_` y `%` son comodines de LIKE: un email como «ana_gomez@…» no puede
+      // coincidir con el de otra persona
+      .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
       .not("telefono", "is", null)
       .limit(1);
     return (data?.[0]?.telefono as string | undefined) ?? "";

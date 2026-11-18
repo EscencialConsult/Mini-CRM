@@ -4,6 +4,8 @@
  * detectado por la primera línea (Excel en español guarda con `;`).
  */
 
+import { celdaCsv } from "@/components/crm/shared/csv";
+
 const SEPARADORES = [";", ",", "\t"] as const;
 
 const detectarSeparador = (texto: string): string => {
@@ -65,12 +67,6 @@ export const leerCsv = (contenido: string): string[][] => {
   }
   if (celda !== "" || fila.length > 0) cerrarFila();
   return filas;
-};
-
-/** Una celda lista para escribir en un CSV con `;` (Excel en español). */
-export const celdaCsv = (valor: unknown): string => {
-  const texto = String(valor ?? "");
-  return /[";\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 };
 
 /** Texto CSV con BOM, para que Excel respete las tildes. */

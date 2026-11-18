@@ -3,16 +3,19 @@ import { useNotify } from "ra-core";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /** Copia un texto al portapapeles y lo confirma un momento. */
 export const CopiarBoton = ({
   texto,
   etiqueta = "Copiar",
   deshabilitado,
+  className,
 }: {
   texto: string;
   etiqueta?: string;
   deshabilitado?: boolean;
+  className?: string;
 }) => {
   const notify = useNotify();
   const [copiado, setCopiado] = useState(false);
@@ -34,6 +37,7 @@ export const CopiarBoton = ({
       type="button"
       variant="outline"
       size="sm"
+      className={cn(className)}
       disabled={deshabilitado || !texto}
       onClick={() => void copiar()}
     >

@@ -147,7 +147,83 @@ const claveAleatoria = () => {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 };
 
-/** Verifica el JWT del llamador y que sea de la plataforma. */
+/**
+ * Un error de Auth se muestra con un mensaje propio: el original (en inglés y con
+ * detalles del proveedor) queda solo en el registro del servidor.
+ */
+const mensajeAuth = (
+  error: { code?: string } | null | undefined,
+  porDefecto: string,
+): string => {
+  switch (error?.code) {
+    case "weak_password":
+      return "La contraseña no cumple los requisitos de seguridad";
+    case "email_address_invalid":
+    case "validation_failed":
+      return "Revisá el email y la contraseña: no son válidos";
+    default:
+      return porDefecto;
+  }
+};
+
+/**
+ * El titular recibió una contraseña provisoria: el CRM lo obliga a elegir una propia
+ * al ingresar. Si todavía no se aplicó la migración que agrega la columna, se deja
+ * constancia en el registro y se sigue: no es motivo para frenar la operación.
+ */
+const marcarCambioDeClave = async (usuarioId: string) => {
+  const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", usuarioId);
+  if (error) console.error("cuentas.marcar_cambio_clave_fallido", { usuarioId, error });
+};
+
+/** Nivel de verificación (`aal1` o `aal2`) que trae el token. Ya se validó con `getUser`: acá solo se lee. */
+const nivelDelToken = (token: string): string | null => {
+  try {
+    const carga = token.split(".")[1] ?? "";
+    const json = atob(carga.replace(/-/g, "+").replace(/_/g, "/"));
+    const aal = (JSON.parse(json) as { aal?: unknown }).aal;
+    return typeof aal === "string" ? aal : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Quien administra todas las cuentas es la llave maestra del sistema: si activó la
+ * verificación en dos pasos (app de autenticación), la sesión tiene que haberla
+ * confirmado (aal2). Con la variable MFA_PLATAFORMA=exigir, además la tiene que haber
+ * activado. Sin esa variable y sin factor activado no se pide nada (así nadie queda
+ * afuera antes de configurarla).
+ */
+const exigirSegundoPaso = async (userId: string, token: string) => {
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId });
+  if (error) {
+    console.error("cuentas.mfa_lectura_fallida", error);
+    throw new HttpError(503, "No se pudo verificar la autenticación en dos pasos", "mfa_check_failed");
+  }
+  const activa = (data?.factors ?? []).some(
+    (factor) => factor.factor_type === "totp" && factor.status === "verified",
+  );
+  if (activa) {
+    if (nivelDelToken(token) !== "aal2") {
+      throw new HttpError(
+        403,
+        "Confirmá tu identidad con el código de tu aplicación de autenticación",
+        "mfa_required",
+      );
+    }
+    return;
+  }
+  if (Deno.env.get("MFA_PLATAFORMA") === "exigir") {
+    throw new HttpError(
+      403,
+      "Activá la verificación en dos pasos desde «Mi perfil» para administrar cuentas",
+      "mfa_enroll_required",
+    );
+  }
+};
+
+/** Verifica el JWT del llamador, que sea de la plataforma y, si corresponde, su segundo paso. */
 const exigirPlataforma = async (req: Request): Promise<Plataforma> => {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) throw new HttpError(401, "Falta la sesión", "no_session");
@@ -163,6 +239,7 @@ const exigirPlataforma = async (req: Request): Promise<Plataforma> => {
   if (!perfil || !perfil.activo || !perfil.plataforma) {
     throw new HttpError(403, "Solo la plataforma puede administrar cuentas", "not_allowed");
   }
+  await exigirSegundoPaso(auth.user.id, token);
   return perfil;
 };
 
@@ -275,9 +352,10 @@ const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => 
   });
   if (authError || !creado.user) {
     const duplicado = authError?.code === "email_exists";
+    if (!duplicado) console.error("cuentas.alta_usuario_fallida", authError);
     throw new HttpError(
       duplicado ? 409 : 400,
-      duplicado ? "Ya existe un usuario con ese email" : (authError?.message ?? "No se pudo crear el usuario"),
+      duplicado ? "Ya existe un usuario con ese email" : mensajeAuth(authError, "No se pudo crear el usuario"),
       duplicado ? "email_taken" : "create_failed",
     );
   }
@@ -306,6 +384,7 @@ const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => 
     );
   }
 
+  await marcarCambioDeClave(usuarioId);
   await auditar(actor, cuenta, "crear", { nombre, modulos, max_usuarios: maximo, titular: email });
   return {
     ...cuenta,
@@ -335,6 +414,7 @@ const restablecerClave = async (actor: Plataforma, cuenta: Cuenta, body: Record<
     console.error("cuentas.clave_fallida", error);
     throw new HttpError(500, "No se pudo cambiar la contraseña", "auth_update_failed");
   }
+  await marcarCambioDeClave(usuario.id);
   await auditar(actor, cuenta, "restablecer_clave", { usuario_id: usuario.id });
   return cuenta;
 };

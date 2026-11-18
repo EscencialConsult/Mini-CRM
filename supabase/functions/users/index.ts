@@ -160,6 +160,35 @@ const exigirCupo = async (cuenta: CuentaActor) => {
 const nombreCompleto = (perfil: Pick<PerfilUsuario, "nombre" | "apellido">) =>
   `${perfil.nombre} ${perfil.apellido}`.trim();
 
+/**
+ * Un error de Auth se muestra con un mensaje propio: el original (en inglés y con
+ * detalles del proveedor) queda solo en el registro del servidor.
+ */
+const mensajeAuth = (
+  error: { code?: string } | null | undefined,
+  porDefecto: string,
+): string => {
+  switch (error?.code) {
+    case "weak_password":
+      return "La contraseña no cumple los requisitos de seguridad";
+    case "email_address_invalid":
+    case "validation_failed":
+      return "Revisá el email y la contraseña: no son válidos";
+    default:
+      return porDefecto;
+  }
+};
+
+/**
+ * La persona recibió una contraseña provisoria: el CRM la obliga a elegir una propia
+ * al ingresar. Si todavía no se aplicó la migración que agrega la columna, se deja
+ * constancia en el registro y se sigue: no es motivo para frenar el alta.
+ */
+const marcarCambioDeClave = async (id: string) => {
+  const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", id);
+  if (error) console.error("users.marcar_cambio_clave_fallido", { id, error });
+};
+
 /** Verifica el JWT del llamador y que sea un administrador activo. */
 const exigirAdministrador = async (req: Request): Promise<Actor> => {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -231,9 +260,10 @@ const crearUsuario = async (actor: Actor, body: Record<string, unknown>) => {
   });
   if (authError || !creado.user) {
     const duplicado = authError?.code === "email_exists";
+    if (!duplicado) console.error("users.alta_fallida", authError);
     throw new HttpError(
       duplicado ? 409 : 400,
-      duplicado ? "Ya existe un usuario con ese email" : (authError?.message ?? "No se pudo crear el usuario"),
+      duplicado ? "Ya existe un usuario con ese email" : mensajeAuth(authError, "No se pudo crear el usuario"),
       duplicado ? "email_taken" : "create_failed",
     );
   }
@@ -247,6 +277,7 @@ const crearUsuario = async (actor: Actor, body: Record<string, unknown>) => {
     throw new HttpError(500, "No se pudo crear el perfil del usuario", "profile_failed");
   }
 
+  await marcarCambioDeClave(creado.user.id);
   await auditar(actor, perfil, "crear", { email, rol, modulos });
   return perfil;
 };
@@ -343,6 +374,9 @@ const actualizarUsuario = async (actor: Actor, body: Record<string, unknown>) =>
       throw new HttpError(500, "No se pudo actualizar la cuenta de acceso", "auth_update_failed");
     }
   }
+
+  // Una contraseña que le fija otro la tiene que cambiar por una propia al ingresar
+  if (password && !esUnoMismo) await marcarCambioDeClave(id);
 
   // Nombre, apellido y módulos van en un solo registro de edición
   const editados: Record<string, { antes: unknown; despues: unknown }> = {};

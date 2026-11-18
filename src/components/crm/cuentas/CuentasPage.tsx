@@ -12,6 +12,7 @@ import { Pill } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
 import { useCloseRecord, useRecordRoute } from "../shared/useRecordRoute";
+import { ConfirmarDosPasos } from "./ConfirmarDosPasos";
 import { CuentaFormDialog } from "./CuentaFormDialog";
 import { SolicitudesPendientes } from "./SolicitudesPendientes";
 import {
@@ -116,7 +117,7 @@ export const CuentasPage = () => {
   };
 
   return (
-    <>
+    <ConfirmarDosPasos>
       <CrmList<Cuenta>
         resource="cuentas"
         titulo="Cuentas"
@@ -161,6 +162,6 @@ export const CuentasPage = () => {
       {ruta.mode === "edit" && (
         <CuentaFormDialog key={ruta.id} id={ruta.id} onClose={cerrar} />
       )}
-    </>
+    </ConfirmarDosPasos>
   );
 };
