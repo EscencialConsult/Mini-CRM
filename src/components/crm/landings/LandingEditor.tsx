@@ -368,9 +368,7 @@ export const LandingEditor = ({ landing: initial }: { landing: Landing }) => {
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           {hasUnpublishedChanges && (
-            <Pill tono="aviso">
-              {translate(`${EDITOR}.changes_pending`)}
-            </Pill>
+            <Pill tono="aviso">{translate(`${EDITOR}.changes_pending`)}</Pill>
           )}
           {problems.length > 0 && (
             <button

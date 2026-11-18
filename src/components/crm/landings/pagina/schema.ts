@@ -210,7 +210,12 @@ export interface LandingCarrito {
   entrega: CarritoEntrega;
 }
 
-export const CARRITO_ENTREGAS = ["elegir", "envio", "retiro", "ninguna"] as const;
+export const CARRITO_ENTREGAS = [
+  "elegir",
+  "envio",
+  "retiro",
+  "ninguna",
+] as const;
 export type CarritoEntrega = (typeof CARRITO_ENTREGAS)[number];
 
 export const CARRITO_PLANTILLA_MENSAJE =
