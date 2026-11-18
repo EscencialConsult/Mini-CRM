@@ -97,6 +97,24 @@ curl -X PATCH "https://api.supabase.com/v1/projects/dzabqnznnotkztrdextl/config/
 
 Aun con el registro abierto, un usuario sin fila en `usuarios` no puede leer ni escribir nada (RLS).
 
+### Seguridad: despliegue y configuración
+
+Orden recomendado (cualquier otro también funciona: cada pieza tolera que falte la otra):
+
+```bash
+npm run db:push                                   # migración 20261118100000_endurecer_seguridad
+npx supabase functions deploy users --use-api --project-ref dzabqnznnotkztrdextl --yes
+npx supabase functions deploy cuentas --use-api --project-ref dzabqnznnotkztrdextl --yes
+# después, el sitio de Netlify (push a main)
+npm run db:psql -- -v ON_ERROR_STOP=1 -f supabase/tests/aislamiento_cuentas.sql   # debe terminar en «aislamiento_ok»
+```
+
+- **Contraseñas provisorias**: quien recibe una (alta de usuario, alta de cuenta, restablecimiento) tiene que elegir una propia al ingresar. Se marca en `usuarios.debe_cambiar_clave`.
+- **Verificación en dos pasos del dueño del sistema**: en Supabase, Authentication → Multi-Factor → habilitar TOTP. El dueño la activa desde «Mi perfil». Desde ese momento, la función `cuentas` le pide el código en cada sesión. Una vez activada, `npx supabase secrets set MFA_PLATAFORMA=exigir` hace obligatoria la activación (sin factor, no administra cuentas). Si pierde la aplicación: Authentication → Users → quitar el factor.
+- **Asistente de IA** (Netlify): `ANTHROPIC_API_KEY` marcada como secreta y solo para Functions. Cupo: 30 consultas cada 10 minutos por persona y 1000 por día por cuenta (`asistente_consumir`).
+- **Landings públicas**: tope de 30 visitas por conexión y día, 300 envíos por hora por landing y 2000 por día por cuenta (además de 5 envíos cada 10 minutos por conexión). Los topes están en `public.landing_recibir` y `public.landing_pedido` (migración `20261118100000`); para cambiarlos hace falta una migración nueva que redefina esas dos funciones.
+- **Content-Security-Policy del CRM**: en `netlify.toml` corre en modo prueba (`Report-Only`). Para activarla, navegar todos los módulos con la consola abierta; si no hay avisos, pasarla a `Content-Security-Policy`.
+
 ## Estructura
 
 ```
@@ -123,7 +141,10 @@ Convenciones: dominio y base en español (`clientes`, `oportunidades`, `activida
 
 ```bash
 npm run typecheck && npm run lint && npm run build
+npm run db:test      # si tocaste supabase/: migraciones + test de aislamiento en un Postgres local (PGlite)
 ```
+
+`db:test` no necesita credenciales ni toca la base remota; es una emulación de Supabase, por eso el mismo test se corre también contra la base real después de cada `db:push`.
 
 ## Pendiente / extensiones posibles
 

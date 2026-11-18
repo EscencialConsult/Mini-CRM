@@ -28,3 +28,6 @@ supabase/.branches/
 .opencode/
 opencode.json
 session-*.md
+
+# Local Netlify folder
+.netlify
