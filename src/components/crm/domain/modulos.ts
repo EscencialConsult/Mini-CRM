@@ -1,3 +1,4 @@
+import { cuentaVigente } from "./prueba";
 import type { Rol } from "./types";
 
 /**
@@ -141,14 +142,19 @@ export interface PerfilConModulos {
   /** Dueño del sistema: administra las cuentas. */
   plataforma?: boolean;
   /** Plan de la cuenta. Sin él (perfil viejo) no se limita nada: la base manda. */
-  cuenta?: { activa: boolean; modulos: readonly Modulo[] };
+  cuenta?: {
+    activa: boolean;
+    /** Si la prueba gratis ya venció, la cuenta no se puede usar. */
+    prueba_hasta?: string | null;
+    modulos: readonly Modulo[];
+  };
 }
 
 /**
  * Se usa si la cuenta lo tiene Y el usuario lo tiene: el administrador, todos
  * los de su cuenta menos los extras (asistente), que se ceden a cada persona;
- * el resto, los que le asignaron. Una cuenta suspendida no
- * usa ninguno.
+ * el resto, los que le asignaron. Una cuenta suspendida, o con la prueba gratis
+ * vencida, no usa ninguno.
  */
 export const tieneModulo = (
   perfil: PerfilConModulos | undefined,
@@ -156,7 +162,7 @@ export const tieneModulo = (
 ): boolean =>
   !!perfil &&
   (perfil.cuenta === undefined ||
-    (perfil.cuenta.activa && perfil.cuenta.modulos.includes(modulo))) &&
+    (cuentaVigente(perfil.cuenta) && perfil.cuenta.modulos.includes(modulo))) &&
   (perfil.modulos.includes(modulo) ||
     (perfil.rol === "administrador" && !MODULOS_OPCIONALES.includes(modulo)));
 

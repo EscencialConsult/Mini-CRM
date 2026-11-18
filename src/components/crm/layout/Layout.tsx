@@ -13,7 +13,9 @@ import { construirReporte } from "../shared/errors/errorReport";
 import { ErrorDetalle } from "../shared/errors/ErrorDetalle";
 import { GlobalErrorListener } from "../shared/errors/GlobalErrorListener";
 import { AsistenteFlotante } from "../asistente/AsistenteFlotante";
+import { cuentaVigente } from "../domain/prueba";
 import { useCrmIdentity } from "../providers/authProvider";
+import { useAhora } from "../shared/useAhora";
 import { AppSidebar } from "./AppSidebar";
 import { CambioClaveObligatorio } from "./CambioClaveObligatorio";
 
@@ -29,11 +31,27 @@ const CuentaSuspendida = ({ nombre }: { nombre: string }) => (
   </div>
 );
 
+/** La prueba gratis venció: la base ya bloquea la cuenta, acá se le explica a la persona. */
+const PruebaTerminada = ({ nombre }: { nombre: string }) => (
+  <div role="alert" className="rounded-xl border bg-card p-6">
+    <h1 className="text-lg font-semibold">Tu prueba gratis terminó</h1>
+    <p className="mt-2 text-sm text-muted-foreground">
+      La prueba gratis de «{nombre}» terminó. Tus datos están a salvo: no se
+      borró nada. Si querés seguir, comunicate con quien te dio el acceso y
+      elegí un plan.
+    </p>
+  </div>
+);
+
 const Contenido = ({ children }: { children: ReactNode }) => {
   const { identity } = useCrmIdentity();
+  const ahora = useAhora();
   const cuenta = identity?.cuenta;
-  if (cuenta && !cuenta.activa && !identity.plataforma) {
-    return <CuentaSuspendida nombre={cuenta.nombre} />;
+  if (cuenta && !identity.plataforma) {
+    if (!cuenta.activa) return <CuentaSuspendida nombre={cuenta.nombre} />;
+    if (!cuentaVigente(cuenta, ahora)) {
+      return <PruebaTerminada nombre={cuenta.nombre} />;
+    }
   }
   return <>{children}</>;
 };

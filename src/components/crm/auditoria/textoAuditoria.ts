@@ -114,6 +114,7 @@ export const ETIQUETAS_CAMPO: Record<string, string> = {
   etiquetas: "Etiquetas",
   modulos: "Módulos",
   max_usuarios: "Máximo de usuarios",
+  prueba_hasta: "Prueba gratis hasta",
   titular: "Titular",
   productos: "Productos",
   canal_id: "Canal",

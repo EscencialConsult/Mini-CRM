@@ -36,6 +36,9 @@ export const PlanesInput = () => {
       shouldDirty: true,
       shouldValidate: true,
     });
+    // Solo el plan «Prueba» lleva los días gratis
+    // Sin marcar como modificado: en edición este campo no se envía
+    setValue("prueba", plan.id === "prueba", { shouldDirty: false });
   };
 
   return (

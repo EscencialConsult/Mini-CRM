@@ -10,13 +10,13 @@ import { generarClave } from "../domain/claves";
 import type { Cuenta } from "../domain/types";
 import { enlaceWhatsapp } from "../domain/whatsapp";
 import { useCrmDataProvider } from "../providers/dataProvider";
-import { getSupabaseClient } from "../providers/supabase";
 import {
   accesosPendientes,
   mensajeAcceso,
   type CredencialesCuenta,
 } from "./acceso";
 import { CopiarBoton } from "./CopiarBoton";
+import { buscarTelefono } from "./telefonos";
 
 const mensajeDe = (error: unknown): string =>
   error instanceof Error ? error.message : "No se pudo completar la operación";
@@ -30,23 +30,6 @@ const Dato = ({ rotulo, valor }: { rotulo: string; valor: string }) => (
     <CopiarBoton texto={valor} />
   </div>
 );
-
-/** El teléfono con el que el titular pidió la prueba (su ficha de cliente), si está. */
-const buscarTelefono = async (email: string): Promise<string> => {
-  try {
-    const { data } = await getSupabaseClient()
-      .from("clientes")
-      .select("telefono")
-      // `_` y `%` son comodines de LIKE: un email como «ana_gomez@…» no puede
-      // coincidir con el de otra persona
-      .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
-      .not("telefono", "is", null)
-      .limit(1);
-    return (data?.[0]?.telefono as string | undefined) ?? "";
-  } catch {
-    return "";
-  }
-};
 
 /** Acceso listo para mandar: datos para copiar, el mensaje y el botón de WhatsApp. */
 const PanelAcceso = ({

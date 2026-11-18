@@ -4,7 +4,8 @@
 -- nadie ve ni toca lo de la otra. Cualquier falla corta con «FALLO: …».
 -- Además comprueba el endurecimiento de 20261118100000: qué funciones pueden
 -- ejecutar anon y authenticated, los topes contra abuso de las landings, el cupo
--- del asistente y el cambio de clave obligatorio.
+-- del asistente y el cambio de clave obligatorio; y la prueba gratis de
+-- 20261118110000: la cuenta se corta sola al vencer.
 -- Todo corre dentro de una transacción que termina en ROLLBACK: no deja nada.
 -- Aun así, correrla en una base de pruebas (consume números de identidad).
 --
@@ -774,6 +775,178 @@ begin
     raise exception 'FALLO: clave_cambiada() limpió la marca de otra persona';
   end if;
 end $$;
+
+-- ----------------------------------------------------------------------------
+-- 10) Prueba gratis: la cuenta se corta sola al vencer
+-- ----------------------------------------------------------------------------
+do $$
+declare
+  u uuid := gen_random_uuid();
+  u_paga uuid := gen_random_uuid();
+  r public.cuentas;
+  v_json jsonb := '{"form":{"fields":[{"id":"n","type":"text","target":"full_name","label":"Nombre","required":true}],"consent":{"enabled":false}},"carrito":{"activo":false}}'::jsonb;
+begin
+  -- La Edge Function `cuentas` da de alta con la clave de servicio: tiene que poder ejecutar
+  -- cuenta_alta, y el resto no. La versión de 7 argumentos ya no puede existir: con las dos
+  -- sobrecargas la llamada por nombre desde PostgREST sería ambigua.
+  if not has_function_privilege('service_role', 'public.cuenta_alta(text, text[], integer, uuid, text, text, text, integer)', 'execute') then
+    raise exception 'FALLO: service_role no puede ejecutar cuenta_alta: la función cuentas no podría dar de alta';
+  end if;
+  if has_function_privilege('anon', 'public.cuenta_alta(text, text[], integer, uuid, text, text, text, integer)', 'execute')
+     or has_function_privilege('authenticated', 'public.cuenta_alta(text, text[], integer, uuid, text, text, text, integer)', 'execute') then
+    raise exception 'FALLO: cuenta_alta quedó abierta a anon o a authenticated';
+  end if;
+  if to_regprocedure('public.cuenta_alta(text, text[], integer, uuid, text, text, text)') is not null then
+    raise exception 'FALLO: quedó la versión vieja de cuenta_alta (7 argumentos): la llamada por nombre sería ambigua';
+  end if;
+
+  insert into auth.users (id, aud, role, email) values
+    (u, 'authenticated', 'authenticated', 'prueba-gratis@prueba.invalid'),
+    (u_paga, 'authenticated', 'authenticated', 'cuenta-paga@prueba.invalid');
+
+  -- Con días de prueba la cuenta nace con su vencimiento (3 días desde ahora)
+  r := public.cuenta_alta('Cuenta de prueba gratis', array['panel', 'clientes', 'landings'], 2, u,
+                          'prueba-gratis@prueba.invalid', 'Pru', 'Eba', 3);
+  if r.prueba_hasta is null
+     or r.prueba_hasta < now() + interval '2 days 23 hours'
+     or r.prueba_hasta > now() + interval '3 days 1 hour' then
+    raise exception 'FALLO: la cuenta de prueba no nació con 3 días de vencimiento (%)', r.prueba_hasta;
+  end if;
+  perform set_config('t.pr', r.id::text, true);
+  perform set_config('t.pru', u::text, true);
+  insert into public.landings (cuenta_id, nombre, slug, estado, borrador, publicada)
+    values (r.id, 'Landing de prueba gratis', 'prueba-gratis-vence', 'publicada', v_json, v_json);
+
+  -- Sin días de prueba (como siempre) la cuenta no vence nunca
+  r := public.cuenta_alta('Cuenta paga sin prueba', array['panel'], 2, u_paga, 'cuenta-paga@prueba.invalid', 'Pa', 'Ga');
+  if r.prueba_hasta is not null then
+    raise exception 'FALLO: una cuenta dada de alta sin prueba nació con vencimiento';
+  end if;
+  perform set_config('t.paga', r.id::text, true);
+  perform set_config('t.upaga', u_paga::text, true);
+
+  -- Días inválidos
+  begin
+    perform public.cuenta_alta('Cuenta mala cero', array['panel'], 1, gen_random_uuid(), 'x0@prueba.invalid', 'X', 'Y', 0);
+    raise exception 'FALLO: cuenta_alta aceptó 0 días de prueba';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+  begin
+    perform public.cuenta_alta('Cuenta mala 61', array['panel'], 1, gen_random_uuid(), 'x61@prueba.invalid', 'X', 'Y', 61);
+    raise exception 'FALLO: cuenta_alta aceptó 61 días de prueba';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+end $$;
+
+-- Dentro de la prueba todo funciona
+select set_config('request.jwt.claim.sub', current_setting('t.pru'), true);
+set local role authenticated;
+do $$
+declare v_id bigint;
+begin
+  if not public.usuario_activo() then raise exception 'FALLO: una prueba vigente no está activa'; end if;
+  if not public.es_administrador() then raise exception 'FALLO: el titular de una prueba vigente no es administrador'; end if;
+  if not public.tiene_modulo('clientes') then raise exception 'FALLO: una prueba vigente no tiene su módulo'; end if;
+  insert into public.clientes (tipo, nombre, apellido) values ('persona', 'Dentro', 'DeLaPrueba') returning id into v_id;
+  if (select count(*) from public.clientes) <> 1 then raise exception 'FALLO: la prueba vigente no ve su cliente'; end if;
+end $$;
+reset role;
+set local role anon;
+do $$
+begin
+  if public.landing_publica('prueba-gratis-vence') is null then
+    raise exception 'FALLO: la landing de una prueba vigente no se publica';
+  end if;
+end $$;
+reset role;
+
+-- Vencida: se corta sola, sin que nadie toque nada
+update public.cuentas set prueba_hasta = now() - interval '1 minute' where id = current_setting('t.pr')::bigint;
+select set_config('request.jwt.claim.sub', current_setting('t.pru'), true);
+set local role authenticated;
+do $$
+declare n int;
+begin
+  if public.usuario_activo() then raise exception 'FALLO: una prueba vencida sigue activa'; end if;
+  if public.es_administrador() then raise exception 'FALLO: el titular de una prueba vencida sigue siendo administrador'; end if;
+  if public.tiene_modulo('clientes') then raise exception 'FALLO: una prueba vencida sigue teniendo módulos'; end if;
+  select count(*) into n from public.clientes;
+  if n <> 0 then raise exception 'FALLO: una prueba vencida sigue viendo clientes (%)', n; end if;
+  begin
+    insert into public.clientes (tipo, nombre, apellido) values ('persona', 'Despues', 'DelCorte');
+    raise exception 'FALLO: una prueba vencida creó un cliente';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+  -- Sí puede leer su propia cuenta y su perfil: la pantalla «Tu prueba terminó» los necesita
+  if (select count(*) from public.cuentas where prueba_hasta is not null and prueba_hasta <= now()) <> 1 then
+    raise exception 'FALLO: una prueba vencida no puede leer su propia cuenta';
+  end if;
+  if (select count(*) from public.usuarios) <> 1 then
+    raise exception 'FALLO: una prueba vencida no puede leer su propio perfil';
+  end if;
+end $$;
+reset role;
+-- Sus landings públicas dejan de atender
+set local role anon;
+do $$
+begin
+  if public.landing_publica('prueba-gratis-vence') is not null then
+    raise exception 'FALLO: la landing de una prueba vencida sigue publicada';
+  end if;
+  begin
+    perform public.landing_recibir(jsonb_build_object('slug', 'prueba-gratis-vence', 'answers', jsonb_build_object('n', 'Tarde Llegada')));
+    raise exception 'FALLO: la landing de una prueba vencida recibió un contacto';
+  exception when others then
+    if sqlerrm like 'FALLO:%' then raise; end if;
+  end;
+end $$;
+reset role;
+
+-- Otra cuenta no se entera
+select set_config('request.jwt.claim.sub', current_setting('t.upaga'), true);
+set local role authenticated;
+do $$
+begin
+  if not public.usuario_activo() then raise exception 'FALLO: el vencimiento de una prueba afectó a otra cuenta'; end if;
+end $$;
+reset role;
+
+-- La plataforma puede darle más días: vuelve a funcionar
+update public.cuentas set prueba_hasta = now() + interval '3 days' where id = current_setting('t.pr')::bigint;
+select set_config('request.jwt.claim.sub', current_setting('t.pru'), true);
+set local role authenticated;
+do $$
+begin
+  if not public.usuario_activo() or not public.tiene_modulo('clientes') then
+    raise exception 'FALLO: una prueba extendida no volvió a funcionar';
+  end if;
+end $$;
+reset role;
+
+-- ...o pasarla a cuenta paga (sin vencimiento): ya no se corta nunca
+update public.cuentas set prueba_hasta = null where id = current_setting('t.pr')::bigint;
+select set_config('request.jwt.claim.sub', current_setting('t.pru'), true);
+set local role authenticated;
+do $$
+begin
+  if not public.usuario_activo() or not public.tiene_modulo('clientes') then
+    raise exception 'FALLO: una prueba pasada a cuenta paga no funciona';
+  end if;
+end $$;
+reset role;
+
+-- Suspender sigue cortando aunque la prueba no haya vencido
+update public.cuentas set activa = false, prueba_hasta = now() + interval '3 days' where id = current_setting('t.pr')::bigint;
+select set_config('request.jwt.claim.sub', current_setting('t.pru'), true);
+set local role authenticated;
+do $$
+begin
+  if public.usuario_activo() then raise exception 'FALLO: una cuenta suspendida con prueba vigente sigue activa'; end if;
+end $$;
+reset role;
 
 select 'aislamiento_ok' as resultado;
 

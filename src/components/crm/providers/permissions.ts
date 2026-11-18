@@ -3,6 +3,7 @@ import {
   type Modulo,
   type PerfilConModulos,
 } from "../domain/modulos";
+import { cuentaVigente } from "../domain/prueba";
 
 type Accion = "list" | "show" | "create" | "edit" | "delete";
 
@@ -79,8 +80,8 @@ export const puedeAcceder = (
       !!perfil.plataforma && (SIN_BORRAR as readonly string[]).includes(action)
     );
   }
-  // Cuenta suspendida: no puede abrir nada hasta que la reactiven
-  if (perfil.cuenta && !perfil.cuenta.activa) return false;
+  // Cuenta suspendida, o con la prueba gratis vencida: no puede abrir nada hasta que la reactiven
+  if (perfil.cuenta && !cuentaVigente(perfil.cuenta)) return false;
   const modulo = MODULO_DE_RECURSO[resource];
   if (modulo && !tieneModulo(perfil, modulo)) return false;
   return (ACCIONES[perfil.rol][resource] ?? []).includes(action as Accion);

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router";
 
+import { BooleanInput } from "@/components/admin/boolean-input";
 import { TextInput } from "@/components/admin/text-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
 
 import { generarClave } from "../domain/claves";
 import { formatFecha } from "../domain/format";
+import { DIAS_DE_PRUEBA, estadoPrueba } from "../domain/prueba";
 import type { Cuenta } from "../domain/types";
 import { validarClave, validarEmailObligatorio } from "../domain/validators";
 import { useCrmDataProvider } from "../providers/dataProvider";
@@ -29,6 +31,7 @@ import { AccesoTitular } from "./AccesoTitular";
 import { accesosPendientes, type CredencialesCuenta } from "./acceso";
 import { PlanesInput } from "./PlanesInput";
 import { PLANES } from "./planes";
+import { SeccionPrueba } from "./SeccionPrueba";
 import {
   marcarAltaHecha,
   useSolicitudes,
@@ -69,8 +72,25 @@ const CamposPlan = () => (
   </>
 );
 
+/** Prueba gratis: solo en el alta; en la ficha se maneja desde «Prueba gratis». */
+const CampoPrueba = () => {
+  const activa = useWatch({ name: "prueba" }) === true;
+  return (
+    <BooleanInput
+      source="prueba"
+      label={`Prueba gratis de ${DIAS_DE_PRUEBA} días`}
+      helperText={
+        activa
+          ? `Se bloquea sola a los ${DIAS_DE_PRUEBA} días. Podés cortarla antes desde su ficha.`
+          : "Sin prueba: la cuenta no se corta sola."
+      }
+    />
+  );
+};
+
 /** Lo que el alta necesita recordar después de guardar (para la entrega y el cierre de la solicitud). */
 interface AltaEnCurso {
+  prueba: boolean;
   solicitud: Solicitud | null;
   etiquetas: Parameters<typeof marcarAltaHecha>[1] | null;
   credenciales: CredencialesCuenta | null;
@@ -119,6 +139,7 @@ const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
     setValue("whatsapp_titular", solicitud.telefono, marcar);
     setValue("modulos", PLANES[0].modulos, marcar);
     setValue("max_usuarios", PLANES[0].maxUsuarios, marcar);
+    setValue("prueba", true, marcar);
   };
 
   // Llegó desde «Dar de alta»: la solicitud ya viene elegida y el alta, cargada
@@ -326,13 +347,20 @@ export const CuentaFormDialog = ({
   // La contraseña inicial nace generada (estable mientras el diálogo está abierto)
   const [claveInicial] = useState(() => generarClave());
   const alta = useRef<AltaEnCurso>({
+    prueba: true,
     solicitud: null,
     etiquetas: null,
     credenciales: null,
   });
 
   const alCrear = (cuenta: Cuenta) => {
-    const { solicitud, etiquetas, credenciales } = alta.current;
+    const { solicitud, etiquetas, credenciales, prueba } = alta.current;
+    if (prueba && !cuenta.prueba_hasta) {
+      notify(
+        "La cuenta se creó, pero el servidor todavía no aplicó el límite de 3 días: falta aplicar la migración y desplegar la función «cuentas». Cuando esté listo, ponela en prueba desde su ficha.",
+        { type: "warning" },
+      );
+    }
     // La ficha de la cuenta recién creada se abre sola y muestra el acceso
     // listo para mandar por WhatsApp (ahí también se puede volver a generar)
     if (credenciales) {
@@ -362,14 +390,17 @@ export const CuentaFormDialog = ({
       tituloEditar={(cuenta) => cuenta.nombre}
       descripcion="Un cliente que contrata el sistema: su plan y el administrador que lo gestiona."
       descripcionEditar={(cuenta) =>
-        cuenta.activa
-          ? "Plan, cupo de usuarios y estado de la cuenta."
-          : "Cuenta suspendida: sus usuarios no ven ni cambian datos hasta que la reactives."
+        !cuenta.activa
+          ? "Cuenta suspendida: sus usuarios no ven ni cambian datos hasta que la reactives."
+          : estadoPrueba(cuenta) === "terminada"
+            ? "Prueba gratis terminada: sus usuarios no ven ni cambian datos hasta que la pases a cuenta paga o le des más días."
+            : "Plan, cupo de usuarios y estado de la cuenta."
       }
       mensajeGuardado="Cuenta guardada"
       defaultValues={{
         modulos: PLANES[0].modulos,
         max_usuarios: PLANES[0].maxUsuarios,
+        prueba: true,
         titular: { password: claveInicial },
       }}
       // Solo lo que se puede cambiar: el resto del registro es de lectura
@@ -382,6 +413,7 @@ export const CuentaFormDialog = ({
               password?: string;
             }
           | undefined;
+        if (id === undefined) alta.current.prueba = datos.prueba === true;
         if (id === undefined && titular) {
           alta.current.credenciales = {
             titular: titular.nombre ?? "",
@@ -394,6 +426,7 @@ export const CuentaFormDialog = ({
           nombre: datos.nombre,
           modulos: datos.modulos,
           max_usuarios: aMaximo(datos.max_usuarios),
+          ...(id === undefined ? { prueba: datos.prueba === true } : {}),
           ...(datos.activa === undefined ? {} : { activa: datos.activa }),
           ...(datos.titular && !("id" in (datos.titular as object))
             ? { titular: datos.titular }
@@ -402,6 +435,7 @@ export const CuentaFormDialog = ({
       }}
       onSaved={id === undefined ? alCrear : undefined}
       size="lg"
+      conservarCambios
       submitLabel={id === undefined ? "Crear cuenta" : undefined}
       onClose={onClose}
       guardadosExtra={(cuenta) =>
@@ -432,6 +466,7 @@ export const CuentaFormDialog = ({
           </SeccionFormulario>
           <SeccionFormulario titulo="3 · El plan">
             <CamposPlan />
+            <CampoPrueba />
           </SeccionFormulario>
           <SeccionFormulario titulo="4 · Administrador titular y acceso">
             <CamposTitular />
@@ -439,6 +474,9 @@ export const CuentaFormDialog = ({
         </>
       ) : (
         <>
+          <SeccionFormulario titulo="Prueba gratis">
+            <SeccionPrueba />
+          </SeccionFormulario>
           <SeccionFormulario titulo="Acceso del titular">
             <AccesoTitular />
           </SeccionFormulario>

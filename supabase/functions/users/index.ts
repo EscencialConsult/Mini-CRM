@@ -42,6 +42,8 @@ interface CuentaActor {
   activa: boolean;
   modulos: Modulo[];
   max_usuarios: number | null;
+  /** Hasta cuándo dura la prueba gratis; null = sin prueba. No viene si falta la migración 20261118110000. */
+  prueba_hasta?: string | null;
 }
 
 type Actor = PerfilUsuario & { cuenta: CuentaActor };
@@ -206,13 +208,20 @@ const exigirAdministrador = async (req: Request): Promise<Actor> => {
     throw new HttpError(403, "Solo un administrador puede gestionar usuarios", "not_allowed");
   }
 
+  // «*» y no una lista: si la migración de la prueba gratis todavía no se aplicó, la columna
+  // simplemente no viene y la gestión de usuarios sigue andando
   const { data: cuenta } = await admin
     .from("cuentas")
-    .select("id, activa, modulos, max_usuarios")
+    .select("*")
     .eq("id", perfil.cuenta_id)
     .maybeSingle<CuentaActor>();
   if (!cuenta) throw new HttpError(403, "La cuenta no existe", "no_account");
   if (!cuenta.activa) throw new HttpError(403, "La cuenta está suspendida", "account_suspended");
+  // Esta función usa la clave de servicio (no pasa por las políticas de la base): la prueba
+  // vencida se frena acá también
+  if (cuenta.prueba_hasta && Date.parse(cuenta.prueba_hasta) <= Date.now()) {
+    throw new HttpError(403, "La prueba gratis de la cuenta terminó", "trial_ended");
+  }
   return { ...perfil, cuenta };
 };
 

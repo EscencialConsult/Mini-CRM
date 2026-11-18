@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { formatFecha, plural } from "../domain/format";
 import { nombreModulo } from "../domain/modulos";
+import { diasRestantes, estadoCuenta } from "../domain/prueba";
 import type { Cuenta } from "../domain/types";
 import { Pill } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
@@ -14,6 +15,7 @@ import { FilterSelect } from "../shared/ListControls";
 import { useCloseRecord, useRecordRoute } from "../shared/useRecordRoute";
 import { ConfirmarDosPasos } from "./ConfirmarDosPasos";
 import { CuentaFormDialog } from "./CuentaFormDialog";
+import { PruebasTerminadas } from "./PruebasTerminadas";
 import { SolicitudesPendientes } from "./SolicitudesPendientes";
 import {
   CLAVE_SOLICITUDES,
@@ -23,9 +25,28 @@ import {
 } from "./useSolicitudes";
 
 const ESTADOS = [
-  { id: "true", name: "Activas" },
-  { id: "false", name: "Suspendidas" },
+  { id: "activa", name: "Activas" },
+  { id: "en_prueba", name: "En prueba" },
+  { id: "prueba_terminada", name: "Prueba terminada" },
+  { id: "suspendida", name: "Suspendidas" },
 ];
+
+const EstadoCuentaPill = ({ cuenta }: { cuenta: Cuenta }) => {
+  const estado = estadoCuenta(cuenta);
+  if (estado === "en_prueba") {
+    const dias = diasRestantes(cuenta) ?? 1;
+    return (
+      <Pill tono="aviso">
+        En prueba · vence en {plural(dias, "día", "días")}
+      </Pill>
+    );
+  }
+  if (estado === "prueba_terminada") {
+    return <Pill tono="peligro">Prueba terminada</Pill>;
+  }
+  if (estado === "suspendida") return <Pill tono="neutro">Suspendida</Pill>;
+  return <Pill tono="exito">Activa</Pill>;
+};
 
 const columnas: ColumnaLista<Cuenta>[] = [
   {
@@ -74,11 +95,7 @@ const columnas: ColumnaLista<Cuenta>[] = [
     encabezado: "Estado",
     orden: "activa",
     etiquetaTarjeta: "Estado",
-    celda: (cuenta) => (
-      <Pill tono={cuenta.activa ? "exito" : "neutro"}>
-        {cuenta.activa ? "Activa" : "Suspendida"}
-      </Pill>
-    ),
+    celda: (cuenta) => <EstadoCuentaPill cuenta={cuenta} />,
   },
   {
     id: "alta",
@@ -124,18 +141,16 @@ export const CuentasPage = () => {
         sort={{ field: "nombre", order: "ASC" }}
         buscar="Buscar por cuenta o email del titular"
         filtros={
-          <FilterSelect
-            source="activa"
-            etiqueta="Estado"
-            opciones={ESTADOS}
-            convertir={(id) => id === "true"}
-          />
+          <FilterSelect source="estado" etiqueta="Estado" opciones={ESTADOS} />
         }
         encabezado={
-          <SolicitudesPendientes
-            solicitudes={solicitudes}
-            alDescartar={descartar}
-          />
+          <div className="space-y-4 empty:hidden">
+            <SolicitudesPendientes
+              solicitudes={solicitudes}
+              alDescartar={descartar}
+            />
+            <PruebasTerminadas />
+          </div>
         }
         acciones={
           <Button asChild>

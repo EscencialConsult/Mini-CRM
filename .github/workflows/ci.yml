@@ -33,6 +33,15 @@ jobs:
       - name: Migraciones y test de aislamiento
         run: npm run db:test
 
+      # Cómo lee el CRM el perfil según las migraciones que tenga la base (cliente de Supabase
+      # falso, sin red): el sitio puede salir antes o después de una migración.
+      - name: Lectura del perfil según migraciones
+        run: npm run test:perfil
+
+      # Reglas de la prueba gratis (iniciar, extender, cortar, pasar a paga) y su estado en pantalla
+      - name: Prueba gratis
+        run: npm run test:prueba
+
       # Solo frena una vulnerabilidad crítica en lo que llega a producción. Las altas
       # que hay hoy (query-string, por ra-core) son de denegación de servicio en el navegador.
       - name: Vulnerabilidades en dependencias de producción

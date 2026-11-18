@@ -27,9 +27,11 @@ npm run lint       # ESLint (no-console salvo warn/error)
 npm run build      # typecheck + vite build  ← la puerta de calidad
 npm run prettier   # check de formato
 npm run db:test    # migraciones + test de aislamiento en un Postgres local (PGlite); no toca la base remota
+npm run test:perfil # cómo lee el CRM el perfil según las migraciones aplicadas (cliente de Supabase falso, sin red)
+npm run test:prueba # reglas de la prueba gratis (servidor y pantalla), sin red ni base
 ```
 
-No hay tests de interfaz. La verificación es `typecheck` + `lint` + `build`; si tocaste `supabase/`, también `npm run db:test` (tarda unos segundos y es lo que corre el CI).
+No hay tests de interfaz. La verificación es `typecheck` + `lint` + `build`; si tocaste `supabase/`, también `npm run db:test`, y si tocaste `providers/authProvider.ts`, `npm run test:perfil` (los dos tardan segundos y los corre el CI).
 
 ## Gotchas verificados
 
@@ -72,7 +74,7 @@ scripts/                      db.mjs, db-test.mjs (PGlite), crear-admin.mjs
 - **Estados**: reutilizá `Pill` y los badges de `shared/badges.tsx` (`EstadoClienteBadge`, `ResultadoBadge`, etc.).
 - **Formato**: `formatMoneda`, `formatFecha`, `formatNumero`, `plural` de `domain/format.ts`. Nunca `toLocaleString` ad hoc.
 - **Permisos**: `useModulos()` / `useCrmIdentity()` para mostrar u ocultar módulos.
-- **Formularios**: `RecordForm` y `SeccionFormulario`; errores en español; validación con Zod cuando ya exista.
+- **Formularios**: `RecordForm` y `SeccionFormulario`; errores en español; validación con Zod cuando ya exista. Si un botón de la ficha cambia el registro y hace `useRefresh()` con el formulario abierto, el modal pasa `conservarCambios` (`RecordFormDialog` → `RecordForm`): sin eso ra-core resetea el formulario al cambiar el registro y se pierde lo que la persona no guardó (ver `SeccionPrueba` en `CuentaFormDialog`).
 - **Accesibilidad**: `aria-label` en botones de sólo icono, foco visible, contraste, targets ≥ 40px.
 - **Responsive**: 375 / 768 / 1440. Prohibido el scroll horizontal.
 - **Código muerto**: no dejes imports ni variables sin usar (rompen el build).
@@ -94,6 +96,8 @@ scripts/                      db.mjs, db-test.mjs (PGlite), crear-admin.mjs
 - **Contraseñas provisorias**: las Edge Functions `users` y `cuentas` marcan `usuarios.debe_cambiar_clave`; el CRM bloquea con `layout/CambioClaveObligatorio.tsx` hasta que la persona elige una propia (RPC `clave_cambiada`). La marca no se escribe desde el cliente.
 - **Plataforma (dueño del sistema)**: `cuentas` exige verificación en dos pasos (`aal2`) apenas el dueño activa TOTP; con la variable `MFA_PLATAFORMA=exigir` en la función lo exige siempre. UI: `layout/SeccionDosPasos.tsx` y `cuentas/ConfirmarDosPasos.tsx`; lógica: `providers/mfa.ts`.
 - **Asistente de IA**: cupo por persona y por cuenta con la RPC `asistente_consumir`; los datos de clientes llegan acotados al modelo.
+- **El sitio y las migraciones salen en cualquier orden**: `providers/authProvider.ts` lee el perfil y la cuenta por niveles (`NIVELES_DEL_PERFIL`, `NIVELES_DE_LA_CUENTA`). Si sumás una columna a lo que se lee ahí, agregá un nivel nuevo; no la pegues al select existente. Una columna que todavía no existe no puede hacer perder `cuenta_id` ni `plataforma` (el dueño del sistema dejaría de ver «Cuentas») ni la cuenta entera (sin ella no se ve que está suspendida o con la prueba vencida). Ya pasó una vez; lo cubre `npm run test:perfil`.
+- **Prueba gratis de 3 días** (migración `20261118110000`): `cuentas.prueba_hasta` (null = sin prueba). Pasada esa fecha la cuenta queda bloqueada como una suspendida, sin tareas programadas: cada chequeo compara contra `now()`. Una cuenta «usable» se decide SIEMPRE con `privado.cuenta_vigente(activa, prueba_hasta)` en SQL y `cuentaVigente` de `domain/prueba.ts` en la pantalla, nunca con `activa` solo (lo hacen `usuario_activo`, `es_administrador`, `tiene_modulo`, `cuenta_habilitada`; una función SECURITY DEFINER nueva que deba frenar cuentas bloqueadas usa la misma). La plataforma controla la prueba con la función `cuentas` (`prueba: iniciar | extender | cortar | convertir`); `users` también frena a una prueba vencida porque usa la clave de servicio. Las reglas puras están en el bloque `<prueba-gratis>` de `supabase/functions/cuentas/index.ts` (las prueba `npm run test:prueba`: no uses nada de afuera de ese bloque). Las cuentas anteriores a la migración quedan SIN prueba: nada se corta al aplicarla.
 - **Orden de despliegue**: primero `npm run db:push`, después las Edge Functions (`users`, `cuentas`) y el sitio de Netlify. La CSP completa del CRM está en `netlify.toml` en modo prueba (`Report-Only`); no la pases a bloqueo sin revisar la vista previa de landings (ver el comentario ahí).
 - `supabase/functions/**` y `netlify/functions/**` no entran en `typecheck` ni `lint`: revisalas a mano.
 

@@ -19,6 +19,11 @@ import {
   type UpdateParams,
 } from "ra-core";
 
+import {
+  estadoCuenta,
+  motivoSinAplicar,
+  type AccionPrueba,
+} from "../domain/prueba";
 import type {
   CambiosCuenta,
   CambiosUsuario,
@@ -420,6 +425,16 @@ export interface CrmDataProvider extends DataProvider {
   /** Crea la cuenta y su administrador titular; `clave_inicial` viene si la generó el sistema. */
   crearCuenta(datos: NuevaCuenta): Promise<Cuenta & { clave_inicial?: string }>;
   actualizarCuenta(cambios: CambiosCuenta): Promise<Cuenta>;
+  /**
+   * Controla la prueba gratis de la cuenta: iniciarla, extenderla, cortarla ahora o pasarla
+   * a cuenta paga. Falla si el servidor no la aplicó (una versión vieja de la función
+   * «cuentas» ignora el pedido y devuelve la cuenta sin cambios).
+   */
+  cambiarPrueba(
+    cuentaId: number,
+    accion: AccionPrueba,
+    dias?: number,
+  ): Promise<Cuenta>;
   /** Cambia la contraseña de un administrador de la cuenta. */
   restablecerClaveTitular(
     cuentaId: number,
@@ -501,9 +516,10 @@ export const getDataProvider = (): CrmDataProvider => {
   const listaDeCuentas = async (
     params: GetListParams,
   ): Promise<GetListResult> => {
-    const { q, activa } = (params.filter ?? {}) as {
+    const { q, activa, estado } = (params.filter ?? {}) as {
       q?: unknown;
       activa?: unknown;
+      estado?: unknown;
     };
     const texto = typeof q === "string" ? q.trim().toLowerCase() : "";
     let filas = await listarCuentas();
@@ -516,6 +532,10 @@ export const getDataProvider = (): CrmDataProvider => {
     }
     if (typeof activa === "boolean") {
       filas = filas.filter((cuenta) => cuenta.activa === activa);
+    }
+    // activa | en_prueba | prueba_terminada | suspendida (ver estadoCuenta)
+    if (typeof estado === "string" && estado) {
+      filas = filas.filter((cuenta) => estadoCuenta(cuenta) === estado);
     }
     const { field, order } = params.sort ?? { field: "nombre", order: "ASC" };
     const signo = order === "DESC" ? -1 : 1;
@@ -638,6 +658,16 @@ export const getDataProvider = (): CrmDataProvider => {
       ),
     actualizarCuenta: (cambios) =>
       invocarFuncion<Cuenta>("cuentas", "PATCH", cambios),
+    async cambiarPrueba(cuentaId, accion, dias) {
+      const cuenta = await invocarFuncion<Cuenta>("cuentas", "PATCH", {
+        id: cuentaId,
+        prueba: accion,
+        ...(dias === undefined ? {} : { dias }),
+      });
+      const motivo = motivoSinAplicar(accion, cuenta);
+      if (motivo) throw new Error(motivo);
+      return cuenta;
+    },
     async restablecerClaveTitular(cuentaId, usuarioId, password) {
       await invocarFuncion<Cuenta>("cuentas", "PATCH", {
         id: cuentaId,

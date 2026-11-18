@@ -38,6 +38,8 @@ interface RecordFormDialogProps<T extends RaRecord> {
   size?: "md" | "lg" | "xl";
   /** Texto del botón de guardar (por defecto, "Guardar"). */
   submitLabel?: string;
+  /** Si el registro se relee mientras se edita, conserva lo cambiado sin guardar. */
+  conservarCambios?: boolean;
   onClose: () => void;
   /** Se llama al guardar; por defecto, cierra el modal. */
   onSaved?: (registro: T) => void;
@@ -55,6 +57,7 @@ const Contenido = <T extends RaRecord>({
   guardadosExtra,
   size,
   submitLabel,
+  conservarCambios,
   onClose,
   children,
 }: Omit<
@@ -79,6 +82,7 @@ const Contenido = <T extends RaRecord>({
       <RecordForm
         defaultValues={defaultValues}
         submitLabel={submitLabel}
+        conservarCambios={conservarCambios}
         onCancel={onClose}
         footerActions={editando && registro ? acciones?.(registro) : undefined}
         extraSaves={guardadosExtra?.(editando ? registro : undefined)}

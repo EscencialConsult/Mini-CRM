@@ -10,7 +10,11 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { useFormContext, useFormState } from "react-hook-form";
+import {
+  useFormContext,
+  useFormState,
+  type KeepStateOptions,
+} from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 
@@ -150,7 +154,19 @@ interface RecordFormProps {
   footerActions?: ReactNode;
   /** Otros guardados (<GuardarCon>), entre Cancelar y Guardar. */
   extraSaves?: ReactNode;
+  /**
+   * Si el registro se vuelve a leer mientras se edita (por ejemplo, tras una
+   * acción de la ficha), conserva lo que la persona ya cambió sin guardar.
+   */
+  conservarCambios?: boolean;
 }
+
+/**
+ * Constante de módulo a propósito: ra-core la usa como dependencia de un
+ * efecto que resetea el formulario; un objeto nuevo en cada render lo
+ * dispararía en bucle.
+ */
+const CONSERVAR_CAMBIOS: KeepStateOptions = { keepDirtyValues: true };
 
 /** Formulario de alta/edición dentro de un modal. Va dentro de CreateBase o EditBase. */
 export const RecordForm = ({
@@ -161,8 +177,10 @@ export const RecordForm = ({
   footerInfo,
   footerActions,
   extraSaves,
+  conservarCambios,
 }: RecordFormProps) => (
   <Form
+    resetOptions={conservarCambios ? CONSERVAR_CAMBIOS : undefined}
     mode="onBlur"
     reValidateMode="onChange"
     defaultValues={defaultValues}

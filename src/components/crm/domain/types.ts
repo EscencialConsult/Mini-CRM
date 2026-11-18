@@ -69,6 +69,11 @@ export interface CuentaResumen {
   modulos: Modulo[];
   /** null = sin límite. */
   max_usuarios: number | null;
+  /**
+   * Hasta cuándo dura la prueba gratis; pasada esa fecha la cuenta queda bloqueada.
+   * Null o ausente = cuenta sin prueba (o la base todavía no tiene la columna).
+   */
+  prueba_hasta?: string | null;
 }
 
 /** Una cuenta tal como la lista la plataforma. */
@@ -88,6 +93,8 @@ export interface NuevaCuenta {
   nombre: string;
   modulos: Modulo[];
   max_usuarios: number | null;
+  /** Con prueba gratis: la cuenta nace con su vencimiento (3 días) y se corta sola. */
+  prueba?: boolean;
   titular: {
     email: string;
     nombre: string;
