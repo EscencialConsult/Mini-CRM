@@ -14,8 +14,13 @@ export const buscarTelefono = async (email: string): Promise<string> => {
       .select("telefono")
       .ilike("email", escaparLike(email))
       .not("telefono", "is", null)
-      .limit(1);
-    return (data?.[0]?.telefono as string | undefined) ?? "";
+      .neq("telefono", "")
+      .limit(5);
+    for (const fila of data ?? []) {
+      const telefono = String(fila.telefono ?? "").trim();
+      if (telefono) return telefono;
+    }
+    return "";
   } catch {
     return "";
   }
@@ -38,7 +43,8 @@ export const buscarTelefonos = async (
       .from("clientes")
       .select("email, telefono")
       .in("email", pedidos)
-      .not("telefono", "is", null);
+      .not("telefono", "is", null)
+      .neq("telefono", "");
     for (const fila of data ?? []) {
       const email = String(fila.email ?? "")
         .trim()

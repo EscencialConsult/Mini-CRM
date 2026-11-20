@@ -338,7 +338,7 @@ export const mensajesLandings = {
       summary: "Con cada envío de esta landing",
       client_new: "Si es alguien nuevo, se crea el cliente asignado a %{name}.",
       client_known:
-        "Si ya existe (mismo email o teléfono), no se duplica: se le suma el envío.",
+        "Si ya existe (mismo email o teléfono), no se duplica: se le suma el envío y los datos que dejó en él (nombre, email, teléfono) quedan anotados en la nota.",
       note: "Se agrega a su historial una nota con las respuestas y la campaña.",
       task: "Se crea la tarea «%{title}» con vencimiento %{when}.",
       task_none: "No se crea ninguna tarea.",

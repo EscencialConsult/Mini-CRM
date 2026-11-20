@@ -24,7 +24,7 @@ const Descartar = ({ alConfirmar }: { alConfirmar: () => Promise<void> }) => {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
+        className="min-h-10"
         onClick={() => setConfirmando(true)}
       >
         Descartar
@@ -32,14 +32,14 @@ const Descartar = ({ alConfirmar }: { alConfirmar: () => Promise<void> }) => {
     );
   }
   return (
-    <span className="flex items-center gap-1" role="group">
+    <span className="flex flex-wrap items-center gap-1" role="group">
       <span className="text-sm text-muted-foreground">
         ¿Sacarla de pendientes?
       </span>
       <Button
         type="button"
         variant="destructive"
-        size="sm"
+        className="min-h-10"
         disabled={enCurso}
         onClick={() => {
           setEnCurso(true);
@@ -54,7 +54,7 @@ const Descartar = ({ alConfirmar }: { alConfirmar: () => Promise<void> }) => {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
+        className="min-h-10"
         disabled={enCurso}
         onClick={() => setConfirmando(false)}
       >
@@ -72,9 +72,12 @@ const Descartar = ({ alConfirmar }: { alConfirmar: () => Promise<void> }) => {
 export const SolicitudesPendientes = ({
   solicitudes,
   alDescartar,
+  limite,
 }: {
   solicitudes: Solicitud[];
   alDescartar: (solicitud: Solicitud) => Promise<void>;
+  /** Tope de la lista: si se llega justo a él, se avisa que puede haber más. */
+  limite?: number;
 }) => {
   if (solicitudes.length === 0) return null;
   return (
@@ -110,14 +113,27 @@ export const SolicitudesPendientes = ({
                 <p className="truncate font-medium">
                   {solicitud.empresa || persona}
                 </p>
-                <p className="truncate text-sm text-muted-foreground">
+                <p className="break-words text-sm text-muted-foreground">
                   {contacto}
                 </p>
+                {solicitud.envioFusionado && (
+                  <div className="mt-1 flex flex-wrap items-start gap-2">
+                    <Pill tono="aviso">
+                      Coincidió con un cliente ya cargado
+                    </Pill>
+                    <p className="min-w-0 break-words text-sm text-muted-foreground">
+                      {solicitud.envioFusionado.datos
+                        ? `Datos del último envío: ${solicitud.envioFusionado.datos}. Revisalos antes de dar de alta: los de arriba son los de la ficha existente.`
+                        : "Los datos de arriba son los de la ficha existente."}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Descartar alConfirmar={() => alDescartar(solicitud)} />
-                {whatsapp && (
-                  <Button asChild variant="outline" size="sm">
+                {/* Si el envío se sumó a una ficha vieja, el número de la ficha puede no ser de quien escribió */}
+                {whatsapp && !solicitud.envioFusionado && (
+                  <Button asChild variant="outline" className="min-h-10">
                     <a
                       href={whatsapp}
                       target="_blank"
@@ -128,7 +144,7 @@ export const SolicitudesPendientes = ({
                     </a>
                   </Button>
                 )}
-                <Button asChild size="sm">
+                <Button asChild className="min-h-10">
                   <Link to={rutaAltaDesde(solicitud.clienteId)}>
                     <UserPlus />
                     Dar de alta
@@ -139,6 +155,11 @@ export const SolicitudesPendientes = ({
           );
         })}
       </ul>
+      {limite !== undefined && solicitudes.length === limite && (
+        <p className="border-t px-4 py-2 text-sm text-muted-foreground">
+          Se muestran como máximo las {limite} más recientes.
+        </p>
+      )}
     </section>
   );
 };

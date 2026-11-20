@@ -28,10 +28,11 @@ import { RecordFormDialog } from "../shared/RecordFormDialog";
 import { ModulosInput } from "../usuarios/ModulosInput";
 import { CopiarBoton } from "./CopiarBoton";
 import { AccesoTitular } from "./AccesoTitular";
-import { accesosPendientes, type CredencialesCuenta } from "./acceso";
+import { publicarAcceso, type CredencialesCuenta } from "./acceso";
 import { PlanesInput } from "./PlanesInput";
 import { PLANES } from "./planes";
 import { SeccionPrueba } from "./SeccionPrueba";
+import { buscarTelefono } from "./telefonos";
 import {
   marcarAltaHecha,
   useSolicitudes,
@@ -108,7 +109,8 @@ const ALTA_MANUAL = "__manual";
  */
 const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
   const { setValue } = useFormContext();
-  const { solicitudes, etiquetas, cargando } = useSolicitudes();
+  const { solicitudes, etiquetas, cargando, error, faltaEtiqueta } =
+    useSolicitudes();
   const [elegida, setElegida] = useState("");
   const marcar = { shouldDirty: true, shouldValidate: true };
 
@@ -162,8 +164,13 @@ const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
         <p className="text-sm text-muted-foreground">Buscando solicitudes…</p>
       ) : solicitudes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No hay solicitudes pendientes: esta es un alta manual. Las solicitudes
-          llegan desde la landing con la etiqueta «Solicitó prueba».
+          {error
+            ? "No se pudieron leer las solicitudes de prueba. Podés seguir con un alta manual y reintentar después."
+            : faltaEtiqueta
+              ? "Falta la etiqueta «Solicitó prueba» en esta cuenta, por eso no se ven las solicitudes. Podés seguir con un alta manual."
+              : "No hay solicitudes pendientes: esta es un alta manual. Las solicitudes llegan desde la landing con la etiqueta «Solicitó prueba»."}
+          {pedida &&
+            " La solicitud que abriste ya no está pendiente o no se pudo cargar: completá el alta a mano."}
         </p>
       ) : (
         <>
@@ -187,6 +194,14 @@ const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
               Elegí una solicitud y se completa el alta con sus datos.
             </p>
           )}
+          {pedida &&
+            !solicitudes.some((s) => String(s.clienteId) === pedida) && (
+              <p role="note" className="text-sm text-muted-foreground">
+                La solicitud que abriste ya no está pendiente o no está entre
+                las más recientes: elegila de la lista o completá el alta a
+                mano.
+              </p>
+            )}
         </>
       )}
       {solicitud && (
@@ -196,6 +211,19 @@ const OrigenSolicitud = ({ alta }: { alta: MutableRefObject<AltaEnCurso> }) => {
           {solicitud.telefono && ` · ${solicitud.telefono}`}. Revisalos y ajustá
           lo que haga falta. Al crear la cuenta, la solicitud se da por
           resuelta.
+        </p>
+      )}
+      {solicitud?.envioFusionado && (
+        <p
+          role="note"
+          className="rounded-md border border-warning/40 bg-warning/15 p-3 text-sm text-warning-foreground"
+        >
+          Ojo: esta solicitud se sumó a una ficha que ya existía, así que el
+          email y el teléfono cargados son los de esa ficha.
+          {solicitud.envioFusionado.datos
+            ? ` Los datos del último envío son: ${solicitud.envioFusionado.datos}.`
+            : ""}{" "}
+          Confirmá con quién corresponde el acceso antes de crear la cuenta.
         </p>
       )}
     </div>
@@ -286,6 +314,13 @@ const RestablecerClaveTitular = () => {
     try {
       await dataProvider.restablecerClaveTitular(cuenta.id, titular.id, clave);
       notify("Contraseña del titular actualizada", { type: "success" });
+      publicarAcceso(cuenta.id, {
+        titular: titular.nombre,
+        email: titular.email,
+        password: clave,
+        telefono: await buscarTelefono(titular.email),
+        origen: "cambio",
+      });
       setClave("");
     } catch (error) {
       notify(mensajeDe(error), { type: "error" });
@@ -364,21 +399,22 @@ export const CuentaFormDialog = ({
     // La ficha de la cuenta recién creada se abre sola y muestra el acceso
     // listo para mandar por WhatsApp (ahí también se puede volver a generar)
     if (credenciales) {
-      accesosPendientes.set(cuenta.id, {
+      publicarAcceso(cuenta.id, {
         ...credenciales,
         email: cuenta.titular?.email ?? credenciales.email,
+        origen: "alta",
       });
     }
     navigate(`/cuentas/${cuenta.id}`, { replace: true });
     if (solicitud && etiquetas) {
       marcarAltaHecha(solicitud, etiquetas, cuenta.nombre)
-        .then(() => onSolicitudCerrada?.())
         .catch((error: unknown) =>
           notify(
             `La cuenta se creó, pero no se pudo actualizar la solicitud: ${mensajeDe(error)}`,
             { type: "warning" },
           ),
-        );
+        )
+        .finally(() => onSolicitudCerrada?.());
     }
   };
 

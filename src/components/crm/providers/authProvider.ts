@@ -24,6 +24,8 @@ export interface CrmIdentity extends UserIdentity {
 // El perfil se vuelve a consultar cada minuto: un cambio de rol o una baja
 // no puede depender de una copia vieja del navegador.
 const PERFIL_TTL_MS = 60 * 1000;
+/** Cuánto dura una copia del perfil a la que le falta su cuenta (se vuelve a leer enseguida). */
+const PERFIL_INCOMPLETO_TTL_MS = 5 * 1000;
 const COLUMNAS_PERFIL =
   "id, nombre, apellido, email, rol, activo, modulos, creado_en";
 
@@ -134,7 +136,17 @@ const leerPerfil = async (): Promise<Usuario | undefined> => {
         );
   const cuenta = lecturaCuenta?.data;
   const perfil: Usuario = cuenta ? { ...data, cuenta } : data;
-  perfilEnCache = { perfil, leidoEn: Date.now() };
+  // Si la cuenta no se pudo leer (un corte de un instante), el perfil queda
+  // incompleto —sin nombre de empresa ni estado de la prueba—: se recuerda solo
+  // unos segundos (no un minuto), para volver a intentarlo enseguida sin que las
+  // pantallas que lo piden a la vez repitan las dos consultas en cada navegación
+  const completo = cuentaId === undefined || !!cuenta;
+  perfilEnCache = {
+    perfil,
+    leidoEn: completo
+      ? Date.now()
+      : Date.now() - PERFIL_TTL_MS + PERFIL_INCOMPLETO_TTL_MS,
+  };
   return perfil;
 };
 

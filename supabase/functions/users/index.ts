@@ -186,9 +186,13 @@ const mensajeAuth = (
  * al ingresar. Si todavía no se aplicó la migración que agrega la columna, se deja
  * constancia en el registro y se sigue: no es motivo para frenar el alta.
  */
-const marcarCambioDeClave = async (id: string) => {
-  const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", id);
-  if (error) console.error("users.marcar_cambio_clave_fallido", { id, error });
+const marcarCambioDeClave = async (id: string): Promise<boolean> => {
+  for (let intento = 1; intento <= 2; intento++) {
+    const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", id);
+    if (!error) return true;
+    console.error("users.marcar_cambio_clave_fallido", { id, intento, error });
+  }
+  return false;
 };
 
 /** Verifica el JWT del llamador y que sea un administrador activo. */

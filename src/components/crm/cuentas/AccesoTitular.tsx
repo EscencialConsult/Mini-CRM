@@ -13,6 +13,8 @@ import { useCrmDataProvider } from "../providers/dataProvider";
 import {
   accesosPendientes,
   mensajeAcceso,
+  publicarAcceso,
+  suscribirAcceso,
   type CredencialesCuenta,
 } from "./acceso";
 import { CopiarBoton } from "./CopiarBoton";
@@ -42,6 +44,12 @@ const PanelAcceso = ({
   const [telefono, setTelefono] = useState(credenciales.telefono);
   const [mensaje, setMensaje] = useState(() => mensajeAcceso(credenciales));
   const enlace = enlaceWhatsapp(telefono, mensaje);
+  const host = window.location.hostname;
+  const entornoDePrueba =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".local") ||
+    ["trycloudflare", "ngrok", "loca.lt"].some((marca) => host.includes(marca));
 
   return (
     <div className="space-y-4">
@@ -70,6 +78,16 @@ const PanelAcceso = ({
           onChange={(evento) => setTelefono(evento.target.value)}
           placeholder="+54 9 11 5555 1234"
         />
+        {entornoDePrueba && (
+          <p
+            role="note"
+            className="rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning-foreground"
+          >
+            Estás en un entorno de prueba ({host}): la dirección que va en el
+            mensaje no es la de producción. Corregila en el mensaje antes de
+            enviarlo.
+          </p>
+        )}
         <label className="text-sm font-medium" htmlFor="acceso-mensaje">
           Mensaje
         </label>
@@ -117,9 +135,14 @@ export const AccesoTitular = () => {
   const [credenciales, setCredenciales] = useState<CredencialesCuenta | null>(
     () => (cuenta ? (accesosPendientes.get(cuenta.id) ?? null) : null),
   );
-  const [recien] = useState(() => credenciales !== null);
   const [enCurso, setEnCurso] = useState(false);
   const cuentaId = cuenta?.id;
+
+  // Un acceso nuevo (de acá o de «Contraseña del titular») reemplaza al mostrado
+  useEffect(() => {
+    if (cuentaId === undefined) return;
+    return suscribirAcceso(cuentaId, setCredenciales);
+  }, [cuentaId]);
 
   // La contraseña no se conserva: al cerrar la ficha se descarta
   useEffect(
@@ -141,11 +164,12 @@ export const AccesoTitular = () => {
         titular.id,
         password,
       );
-      setCredenciales({
+      publicarAcceso(cuenta.id, {
         titular: titular.nombre,
         email: titular.email,
         password,
         telefono: await buscarTelefono(titular.email),
+        origen: "cambio",
       });
     } catch (error) {
       notify(mensajeDe(error), { type: "error" });
@@ -158,7 +182,11 @@ export const AccesoTitular = () => {
     <div className="space-y-3 rounded-md border p-4">
       <p className="text-sm font-medium">Enviar el acceso por WhatsApp</p>
       {credenciales ? (
-        <PanelAcceso credenciales={credenciales} recien={recien} />
+        <PanelAcceso
+          key={credenciales.password}
+          credenciales={credenciales}
+          recien={credenciales.origen === "alta"}
+        />
       ) : (
         <>
           <p className="text-sm text-muted-foreground">

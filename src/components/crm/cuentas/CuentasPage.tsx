@@ -20,6 +20,7 @@ import { SolicitudesPendientes } from "./SolicitudesPendientes";
 import {
   CLAVE_SOLICITUDES,
   descartarSolicitud,
+  LIMITE_SOLICITUDES,
   useSolicitudes,
   type Solicitud,
 } from "./useSolicitudes";
@@ -116,7 +117,8 @@ export const CuentasPage = () => {
   const cerrar = useCloseRecord("cuentas");
   const queryClient = useQueryClient();
   const notify = useNotify();
-  const { solicitudes, etiquetas, recargar } = useSolicitudes();
+  const { solicitudes, etiquetas, recargar, error, faltaEtiqueta } =
+    useSolicitudes();
 
   const descartar = async (solicitud: Solicitud) => {
     try {
@@ -153,9 +155,42 @@ export const CuentasPage = () => {
               Cada cuenta es una empresa que usa el sistema, con su plan y su
               administrador titular.
             </p>
+            {error && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm"
+              >
+                <p>No se pudieron cargar las solicitudes de prueba.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10"
+                  onClick={() => void recargar()}
+                >
+                  Reintentar
+                </Button>
+              </div>
+            )}
+            {faltaEtiqueta && !error && (
+              <div
+                role="note"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted px-4 py-3 text-sm"
+              >
+                <p className="min-w-0 flex-1">
+                  Falta la etiqueta «Solicitó prueba». Sin ella, los pedidos de
+                  prueba que llegan por la landing no aparecen en esta pantalla.
+                  Creala en Etiquetas con ese nombre y agregala en el
+                  Seguimiento de la landing.
+                </p>
+                <Button asChild variant="outline" className="min-h-10">
+                  <Link to="/etiquetas">Ir a Etiquetas</Link>
+                </Button>
+              </div>
+            )}
             <SolicitudesPendientes
               solicitudes={solicitudes}
               alDescartar={descartar}
+              limite={LIMITE_SOLICITUDES}
             />
             <PruebasTerminadas />
           </div>

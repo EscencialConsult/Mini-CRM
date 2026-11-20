@@ -7,6 +7,7 @@ import { formatFecha } from "../domain/format";
 import { nombreModulo } from "../domain/modulos";
 import { ROLES } from "../domain/options";
 import type { Usuario } from "../domain/types";
+import { useCrmIdentity } from "../providers/authProvider";
 import { Pill, RolBadge } from "../shared/badges";
 import { CrmList, type ColumnaLista } from "../shared/CrmList";
 import { FilterSelect } from "../shared/ListControls";
@@ -72,10 +73,39 @@ const columnas: ColumnaLista<Usuario>[] = [
   },
 ];
 
+/**
+ * Solo para el dueño de la plataforma: los usuarios que crea acá son de SU cuenta
+ * (ven su catálogo y sus clientes). Una empresa cliente se crea en Cuentas y es
+ * su titular quien da de alta a sus empleados.
+ */
+const AvisoPlataforma = () => {
+  const { identity } = useCrmIdentity();
+  if (identity?.plataforma !== true) return null;
+  const empresa = identity.cuenta?.nombre;
+  return (
+    <p
+      role="note"
+      className="break-words rounded-lg border border-border bg-muted px-4 py-3 text-sm"
+    >
+      Estas personas pertenecen a tu propia empresa
+      {empresa ? ` («${empresa}»)` : ""}: ven sus clientes y su catálogo. Para
+      una empresa cliente, creala en{" "}
+      <Link
+        to="/cuentas"
+        className="rounded-sm font-medium underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Cuentas
+      </Link>
+      . Su titular da de alta a sus empleados desde el menú Usuarios.
+    </p>
+  );
+};
+
 export const UsuarioList = () => (
   <CrmList<Usuario>
     resource="usuarios"
     titulo="Usuarios"
+    encabezado={<AvisoPlataforma />}
     sort={{ field: "nombre", order: "ASC" }}
     // El "Bot WhatsApp" es un usuario del sistema: no se gestiona desde acá
     filter={{ sistema: false }}

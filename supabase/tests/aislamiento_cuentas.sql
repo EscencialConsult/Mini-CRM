@@ -490,6 +490,44 @@ begin
   end if;
 end $$;
 
+-- Otra persona escribe con el MISMO email de Carla: se suma a su ficha (no se duplica), pero lo que
+-- dejó en el envío (nombre, email) no se pierde: queda en la nota para poder contactarla
+set local role anon;
+do $$
+declare r jsonb;
+begin
+  r := public.landing_recibir(jsonb_build_object(
+    'slug', 'prueba-aislamiento-y',
+    'answers', jsonb_build_object('n', 'Marcos Otra Persona', 'e', 'compartido@prueba.invalid')
+  ));
+  if r ->> 'ok' is distinct from 'true' then raise exception 'FALLO: el envío con un email ya cargado no respondió ok'; end if;
+end $$;
+reset role;
+
+do $$
+declare y bigint := current_setting('t.y')::bigint; n int; v_nota text;
+begin
+  select count(*) into n from public.clientes where cuenta_id = y and lower(email) = 'compartido@prueba.invalid';
+  if n <> 1 then raise exception 'FALLO: el mismo email creó % clientes en Y (debía sumarse a uno)', n; end if;
+  select a.descripcion into v_nota
+  from public.actividades a
+  join public.clientes c on c.id = a.cliente_id
+  where a.cuenta_id = y and a.tipo = 'nota' and c.nombre = 'Carla'
+    and a.descripcion like '%Marcos Otra Persona%'
+  order by a.id desc limit 1;
+  if v_nota is null then
+    raise exception 'FALLO: los datos del envío que se sumó a un cliente existente no quedaron en la nota';
+  end if;
+  if v_nota not like '%coincidió con un cliente ya cargado%' or v_nota not like '%Datos que dejó en el envío:%' then
+    raise exception 'FALLO: la nota del envío fusionado no avisa que coincidió ni lista los datos: %', v_nota;
+  end if;
+  -- el cliente existente conserva sus datos
+  if (select nombre || ' ' || coalesce(apellido, '') from public.clientes
+      where cuenta_id = y and lower(email) = 'compartido@prueba.invalid') <> 'Carla Visitante' then
+    raise exception 'FALLO: el envío fusionado pisó los datos del cliente existente';
+  end if;
+end $$;
+
 -- Sin sesión (clave de servicio, psql) la auditoría queda en la cuenta de la propia fila
 select set_config('request.jwt.claim.sub', '', true);
 do $$

@@ -19,6 +19,11 @@ export interface Solicitud {
   telefono: string;
   etiquetas: number[];
   creadoEn: string;
+  /**
+   * El último envío coincidió con un cliente ya cargado: nombre, email y
+   * teléfono de arriba son los de la ficha vieja, no los del envío.
+   */
+  envioFusionado?: { datos: string };
 }
 
 interface EtiquetasDeAlta {
@@ -29,12 +34,42 @@ interface EtiquetasDeAlta {
 const ETIQUETA_PENDIENTE = "solicitoprueba";
 const ETIQUETA_ACTIVA = "pruebaactiva";
 
-/** El envío de la landing deja «Empresa: X» en la nota (el rótulo del campo). */
+/** Cuántas solicitudes trae la lista como máximo. */
+export const LIMITE_SOLICITUDES = 50;
+
+const ROTULO_EMPRESA = /empresa|negocio|razonsocial|compania/;
+
+/**
+ * El envío de la landing deja «Rótulo: valor» en la nota. Se toma la primera
+ * línea cuyo rótulo menciona empresa, negocio, razón social o compañía.
+ */
 const leerEmpresa = (nota: string | null): string => {
-  const linea = (nota ?? "")
-    .split("\n")
-    .find((texto) => /^empresa\s*:/i.test(texto.trim()));
-  return linea ? linea.slice(linea.indexOf(":") + 1).trim() : "";
+  for (const texto of (nota ?? "").split("\n")) {
+    const corte = texto.indexOf(":");
+    if (corte < 0) continue;
+    if (ROTULO_EMPRESA.test(normalizarTexto(texto.slice(0, corte)))) {
+      return texto.slice(corte + 1).trim();
+    }
+  }
+  return "";
+};
+
+const MARCA_FUSION = "este envío coincidió con un cliente ya cargado";
+const ROTULO_DATOS = "datos que dejó en el envío:";
+
+/**
+ * Si la nota avisa que el envío se sumó a una ficha existente, devuelve los
+ * datos que dejó en el envío (vacío si la línea no está); si no, undefined.
+ */
+const leerFusion = (nota: string | null): { datos: string } | undefined => {
+  const lineas = (nota ?? "").split("\n").map((linea) => linea.trim());
+  if (!lineas.some((linea) => linea.toLowerCase().startsWith(MARCA_FUSION))) {
+    return undefined;
+  }
+  const linea = lineas.find((texto) =>
+    texto.toLowerCase().startsWith(ROTULO_DATOS),
+  );
+  return { datos: linea ? linea.slice(ROTULO_DATOS.length).trim() : "" };
 };
 
 /** Solicitudes de prueba pendientes: clientes con la etiqueta «Solicitó prueba». */
@@ -45,14 +80,17 @@ export const useSolicitudes = () => {
     activa: null,
   });
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
+    setError(false);
     try {
       const supabase = getSupabaseClient();
-      const { data: todas } = await supabase
+      const { data: todas, error: errorEtiquetas } = await supabase
         .from("etiquetas")
         .select("id, nombre");
+      if (errorEtiquetas) throw new Error(errorEtiquetas.message);
       const idDe = (clave: string) =>
         (todas ?? []).find(
           (fila) => normalizarTexto(String(fila.nombre)) === clave,
@@ -63,28 +101,37 @@ export const useSolicitudes = () => {
         setSolicitudes([]);
         return;
       }
-      const { data: clientes } = await supabase
+      const { data: clientes, error: errorClientes } = await supabase
         .from("clientes")
         .select(
           "id, nombre, apellido, razon_social, email, telefono, etiquetas, creado_en",
         )
         .contains("etiquetas", [pendiente])
         .order("creado_en", { ascending: false })
-        .limit(50);
+        .limit(LIMITE_SOLICITUDES);
+      if (errorClientes) throw new Error(errorClientes.message);
       const ids = (clientes ?? []).map((cliente) => cliente.id as number);
       const empresas = new Map<number, string>();
+      const fusiones = new Map<number, { datos: string }>();
       if (ids.length) {
-        const { data: notas } = await supabase
+        const { data: notas, error: errorNotas } = await supabase
           .from("actividades")
           .select("cliente_id, descripcion, creado_en")
           .in("cliente_id", ids)
           .eq("tipo", "nota")
-          .ilike("titulo", "Formulario de la landing%")
+          .or(
+            "titulo.ilike.Formulario de la landing%,titulo.ilike.WhatsApp desde la landing%",
+          )
           .order("creado_en", { ascending: false });
+        if (errorNotas) console.error("cuentas.notas_fallidas", errorNotas);
+        const vistos = new Set<number>();
         for (const nota of notas ?? []) {
           const id = nota.cliente_id as number;
-          if (!empresas.has(id))
-            empresas.set(id, leerEmpresa(nota.descripcion));
+          if (vistos.has(id)) continue;
+          vistos.add(id);
+          empresas.set(id, leerEmpresa(nota.descripcion));
+          const fusion = leerFusion(nota.descripcion);
+          if (fusion) fusiones.set(id, fusion);
         }
       }
       setSolicitudes(
@@ -98,11 +145,13 @@ export const useSolicitudes = () => {
           telefono: cliente.telefono ?? "",
           etiquetas: (cliente.etiquetas as number[] | null) ?? [],
           creadoEn: cliente.creado_en as string,
+          envioFusionado: fusiones.get(cliente.id as number),
         })),
       );
     } catch (error) {
       console.error("cuentas.solicitudes_fallidas", error);
       setSolicitudes([]);
+      setError(true);
     } finally {
       setCargando(false);
     }
@@ -112,7 +161,14 @@ export const useSolicitudes = () => {
     void cargar();
   }, [cargar]);
 
-  return { solicitudes, etiquetas, cargando, recargar: cargar };
+  return {
+    solicitudes,
+    etiquetas,
+    cargando,
+    recargar: cargar,
+    error,
+    faltaEtiqueta: !cargando && !error && etiquetas.pendiente === null,
+  };
 };
 
 /** Deja constancia en el historial del cliente; es un extra: si falla, no se corta nada. */

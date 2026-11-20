@@ -1541,13 +1541,22 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
     });
     var answers = {};
     var missing = null;
+    var shortPhone = null;
     config.fields.forEach(function (field) {
       var value = valueOf(field);
       answers[field.id] = value;
       if (field.required && !value.length && !missing) missing = field.label;
+      if (field.type === "phone" && value.length && !shortPhone) {
+        var phoneDigits = value.replace(/\\D/g, "").length;
+        if (phoneDigits < 8 || phoneDigits > 15) shortPhone = field;
+      }
     });
     if (missing) {
       showError("Completá este campo: " + missing);
+      return;
+    }
+    if (shortPhone) {
+      showError("Revisá el teléfono: con el código de área y sin repetir el código de país.", form.elements[shortPhone.id]);
       return;
     }
     // Products still loading or failed: a send now would go as an inquiry, without the order
@@ -1608,13 +1617,30 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
         busy = false;
         button.disabled = false;
         if (cartApi) { cartApi.refresh(); } else { button.textContent = original; }
-        showError(
-          body && body.message === "rate_limited"
-            ? "Recibimos varios envíos desde tu conexión. Volvé a intentarlo en unos minutos."
-            : body && body.hint === "landing_pedido" && typeof body.message === "string" && body.message.length > 0 && body.message.length <= 160
-              ? body.message
-              : "No pudimos enviar tus datos. Revisá el formulario e intentalo de nuevo."
-        );
+        if (body && body.message === "rate_limited") {
+          showError("Recibimos varios envíos desde tu conexión. Volvé a intentarlo en unos minutos.");
+        } else if (body && body.hint === "landing_pedido" && typeof body.message === "string" && body.message.length > 0 && body.message.length <= 160) {
+          showError(body.message);
+        } else if (body && body.message === "invalid" && body.details === "consent") {
+          showError("Tildá la casilla de aceptación para poder enviar.", form.elements.consent);
+        } else if (body && body.message === "invalid") {
+          var bad = null;
+          config.fields.forEach(function (field) {
+            if (!bad && field.id === body.details) bad = field;
+          });
+          if (bad) {
+            var control = bad.type === "radio" || bad.type === "checkbox"
+              ? form.querySelector('input[name="' + bad.id + '"]')
+              : form.elements[bad.id];
+            showError("Revisá este dato: " + bad.label + ".", control);
+          } else {
+            showError("Revisá los datos del formulario e intentá de nuevo.");
+          }
+        } else if (body && body.message === "not_found") {
+          showError("Esta página no está recibiendo envíos en este momento. Probá de nuevo más tarde.");
+        } else {
+          showError("No pudimos enviar tus datos. Revisá el formulario e intentalo de nuevo.");
+        }
       });
   });
 
@@ -1652,7 +1678,7 @@ const pageScript = (content: LandingContent, options: RenderOptions) => {
       waError.hidden = true;
       var name = waForm.elements.name.value.trim();
       var phone = waForm.elements.phone.value.trim();
-      if (!name || phone.replace(/\\D/g, "").length < 6) {
+      if (!name || phone.replace(/\\D/g, "").length < 8) {
         waError.textContent = "Escribí tu nombre y un número válido.";
         waError.hidden = false;
         return;

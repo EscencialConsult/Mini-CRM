@@ -256,9 +256,25 @@ const mensajeAuth = (
  * al ingresar. Si todavía no se aplicó la migración que agrega la columna, se deja
  * constancia en el registro y se sigue: no es motivo para frenar la operación.
  */
-const marcarCambioDeClave = async (usuarioId: string) => {
-  const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", usuarioId);
-  if (error) console.error("cuentas.marcar_cambio_clave_fallido", { usuarioId, error });
+const marcarCambioDeClave = async (usuarioId: string): Promise<boolean> => {
+  for (let intento = 1; intento <= 2; intento++) {
+    const { error } = await admin.from("usuarios").update({ debe_cambiar_clave: true }).eq("id", usuarioId);
+    if (!error) return true;
+    console.error("cuentas.marcar_cambio_clave_fallido", { usuarioId, intento, error });
+  }
+  return false;
+};
+
+/**
+ * Deshace el alta en Auth cuando falla lo que sigue. Se reintenta una vez y, si no se
+ * logra, queda en el registro: un email atrapado se limpia a mano desde Auth.
+ */
+const revertirUsuarioAuth = async (usuarioId: string) => {
+  for (let intento = 1; intento <= 2; intento++) {
+    const { error } = await admin.auth.admin.deleteUser(usuarioId);
+    if (!error) return;
+    console.error("cuentas.rollback_usuario_fallido", { usuarioId, intento, error });
+  }
 };
 
 /** Nivel de verificación (`aal1` o `aal2`) que trae el token. Ya se validó con `getUser`: acá solo se lee. */
@@ -469,7 +485,7 @@ const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => 
   });
   const cuenta = alta as Cuenta | null;
   if (altaError || !cuenta) {
-    await admin.auth.admin.deleteUser(usuarioId);
+    await revertirUsuarioAuth(usuarioId);
     const repetida = altaError?.code === "23505" && (altaError.message ?? "").includes("cuentas_nombre");
     // PGRST202: la base no conoce la función con ese argumento (falta la migración de la prueba gratis)
     const sinPrueba = prueba && altaError?.code === "PGRST202";
@@ -485,7 +501,7 @@ const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => 
     );
   }
 
-  await marcarCambioDeClave(usuarioId);
+  const claveMarcada = await marcarCambioDeClave(usuarioId);
   await auditar(actor, cuenta, "crear", {
     nombre,
     modulos,
@@ -499,6 +515,8 @@ const crearCuenta = async (actor: Plataforma, body: Record<string, unknown>) => 
     titular: { id: usuarioId, nombre: nombreTitular, apellido: apellidoTitular, email },
     // Solo si la generó el sistema: se muestra una vez para entregársela al titular
     clave_inicial: clavePropia ? undefined : clave,
+    // false: no se pudo exigir el cambio de clave al ingresar (queda en el registro del servidor)
+    cambio_clave_exigido: claveMarcada,
   };
 };
 
